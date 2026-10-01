@@ -7,6 +7,7 @@ if (siteHeader && navToggle) {
 
 	const closeNavigation = (restoreFocus = false) => {
 		siteHeader.classList.remove("nav-open");
+		document.body.classList.remove("nav-scroll-lock");
 		navToggle.setAttribute("aria-expanded", "false");
 		navToggle.textContent = "Menu";
 		navToggle.setAttribute("aria-label", "Open navigation menu");
@@ -15,6 +16,7 @@ if (siteHeader && navToggle) {
 
 	navToggle.addEventListener("click", () => {
 		const isOpen = siteHeader.classList.toggle("nav-open");
+		document.body.classList.toggle("nav-scroll-lock", isOpen);
 		navToggle.setAttribute("aria-expanded", String(isOpen));
 		navToggle.textContent = isOpen ? "Close" : "Menu";
 		navToggle.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
