@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    @font-face {
+      font-family: "Pixelta";
+      src: url("assets/fonts/Pixelta.ttf") format("truetype");
+    }
+    text {
+      font-family: "Pixelta", sans-serif;
+      font-size: 35px;
+    }
+  </style>
+  <rect width="64" height="64" fill="#f2f0e9"/>
+  <text x="5" y="47" fill="#1c1d1a">CO</text>
+  <text x="48" y="47" fill="#315ee8">.</text>
+</svg>

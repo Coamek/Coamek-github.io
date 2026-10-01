@@ -4,27 +4,182 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connor Oamek | Portfolio</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="description" content="Connor Oamek is a graphic designer pursuing UI/UX, bringing visual craft to clear, thoughtful digital experiences.">
+    <meta name="theme-color" content="#f2f0e9">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Connor Oamek | Portfolio">
+    <meta property="og:description" content="Graphic design and UI/UX work across sports, gaming, photography, branding, and digital experiences.">
+    <meta property="og:image" content="social-preview.svg">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,400;1,500;1,600&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preload" as="image" href="assets/badgers-work/web/hockey/behance%20cover%20captains.jpg">
 </head>
-<body>
-    <nav>
-        <div class="logo">Connor Oamek</div>
-        <div class="links">
+<body id="top">
+    <header class="site-header home-header">
+        <a class="wordmark" href="#top" aria-label="Connor Oamek, home">CO<span>.</span></a>
+        <nav class="site-nav" id="site-navigation" aria-label="Main navigation">
             <a href="#work">Work</a>
+            <a href="#about">About me</a>
             <a href="#contact">Contact</a>
-        </div>
-    </nav>
-    <section class="hero">
-        <h1>Hi, I'm Connor. I design clean UI/UX and graphic experiences.</h1>
-    </section>
-    <section id="work">
-        <h2>My Case Studies</h2>
-        <p>Case studies coming soon...</p>
-    </section>
-    <section id="contact">
-        <h2>Let's Connect</h2>
-        <p>Email: contact@connoroamek.me</p>
-    </section>
+            <a href="https://www.linkedin.com/in/connor-oamek/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        </nav>
+        <button class="nav-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    </header>
+
+    <main>
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-topline">
+                <div class="hero-kicker">Graphic designer pursuing UI/UX</div>
+                <p class="hero-index">Portfolio<br>2026</p>
+            </div>
+            <h1 id="hero-title">Connor <span>Oamek</span></h1>
+            <div class="hero-bottom">
+                <p class="hero-description">I’m a graphic designer expanding into UI/UX, passionate about sports, gaming, and the visual worlds around them.</p>
+                <div class="hero-signature" aria-label="Areas of practice">
+                    <span>Sports graphics</span>
+                    <span>Brand identity</span>
+                    <span>UI/UX</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="work section-wrap" id="work" aria-labelledby="work-title">
+            <div class="section-heading">
+                <div>
+                    <h2 id="work-title">My work<span class="accent">.</span></h2>
+                </div>
+                <p class="section-count">01 — 06</p>
+            </div>
+
+            <div class="project-grid">
+                <a class="project project-wide" href="badgers-athletics.html" aria-label="Wisconsin Athletics internship case study">
+                    <div class="project-image image-badgers">
+                        <img src="assets/badgers-work/web/hockey/behance%20cover%20captains.jpg" alt="Wisconsin Women’s Hockey captains and Badgers team mark" loading="lazy" decoding="async">
+                        <span class="project-number">01</span>
+                    </div>
+                    <div class="project-caption"><h3>Wisconsin Athletics Internship</h3><p>Sports graphics <span>↗</span></p></div>
+                </a>
+                <a class="project project-narrow" href="sonics-rebrand.html" aria-label="Seattle SuperSonics rebrand case study">
+                    <div class="project-image image-brand">
+                        <img src="assets/sonics-rebrand/behance%20cover.jpg" alt="Seattle SuperSonics rebrand cover featuring the team mark and Kevin Durant" loading="lazy" decoding="async">
+                        <span class="project-number">02</span>
+                    </div>
+                    <div class="project-caption"><h3>Seattle SuperSonics Rebrand</h3><p>Brand identity <span>↗</span></p></div>
+                </a>
+                <a class="project project-narrow" href="made-hoops.html" aria-label="MADE Hoops internship case study">
+                    <div class="project-image image-made-hoops">
+                        <img src="assets/made-hoops/web/behance%20cover%203.jpg" alt="MADE Hoops Summer Live Finals cover with player portrait and final score" loading="lazy" decoding="async">
+                        <span class="project-number">03</span>
+                    </div>
+                    <div class="project-caption"><h3>MADE Hoops Internship</h3><p>Digital &amp; social design <span>↗</span></p></div>
+                </a>
+                <a class="project project-wide" href="school-and-personal-projects.html" aria-label="School and personal projects case study">
+                    <div class="project-image image-school-personal">
+                        <img src="assets/school-and-personal-projects/web/behance%20school.jpg" alt="School and personal projects cover showing a Denzel Curry poster and basketball design work" loading="lazy" decoding="async">
+                        <span class="project-number">04</span>
+                    </div>
+                    <div class="project-caption"><h3>School &amp; Personal Projects (UI/UX &amp; Graphic)</h3><p>Coursework &amp; personal work <span>↗</span></p></div>
+                </a>
+                <a class="project project-wide" href="photography.html" aria-label="Photography project">
+                    <div class="project-image image-photography">
+                        <img src="assets/photography/web/gallery/behance-cover.jpg" alt="Photography project cover with a Wisconsin rowing portrait beside a coastal landscape" loading="lazy" decoding="async">
+                        <span class="project-number">05</span>
+                    </div>
+                    <div class="project-caption"><h3>Photography</h3><p>Media Day &amp; personal photos <span>↗</span></p></div>
+                </a>
+                <a class="project project-placeholder" href="thumbnails.html" aria-label="YouTube thumbnails project">
+                    <div class="project-image image-thumbnails">
+                        <img src="assets/thumbnails/favs.jpg" alt="Collage of YouTube thumbnails created across NBA 2K and livestreaming communities" loading="lazy" decoding="async">
+                        <span class="project-number">06</span>
+                    </div>
+                    <div class="project-caption"><h3>Freelance YouTube Thumbnails</h3><p>Thumbnail design <span>↗</span></p></div>
+                </a>
+            </div>
+        </section>
+
+        <section class="about section-wrap" id="about" aria-labelledby="about-title">
+            <div class="about-content">
+                <p class="eyebrow about-label">About me</p>
+                <div class="about-intro">
+                    <div class="about-bio">
+                        <h2 id="about-title">Graphic design first, with a growing focus on <span>UI/UX.</span></h2>
+                        <p class="about-summary">I’m a graphic designer with six years of experience creating digital content, brand identities, and promotional graphics. I’m passionate about my work, especially projects connected to sports and gaming, where visual storytelling can bring audiences closer to the experiences they love. As I grow into UI/UX, I’m focused on making those experiences clear, engaging, and intuitive.</p>
+                    </div>
+                    <img class="about-portrait" src="assets/web/connor-about.jpg" alt="Portrait of Connor Oamek" loading="lazy" decoding="async">
+                </div>
+                <div class="freelance-feature">
+                    <div class="freelance-role">
+                        <p class="freelance-label">Freelance Graphic Designer</p>
+                        <p class="freelance-dates">Jan 2020–Sep 2026</p>
+                    </div>
+                    <div class="freelance-impact">
+                        <p class="freelance-number">100M+</p>
+                        <p>combined views on content featuring my thumbnails</p>
+                    </div>
+                    <p class="freelance-description">Created custom YouTube thumbnails with Photoshop and Blender for hundreds of creators, collaborating directly with clients to bring their ideas to life.</p>
+                </div>
+                <div class="about-facts">
+                    <div class="about-fact">
+                        <p class="fact-label">Current work</p>
+                        <h3>Wisconsin Athletics</h3>
+                        <p>Creative Student Intern<br>Sep 2023–May 2024 · Mar 2026–Present</p>
+                        <h3>MADE Hoops</h3>
+                        <p>Creative Intern<br>Mar 2026–Present</p>
+                    </div>
+                    <div class="about-fact">
+                        <p class="fact-label">Education</p>
+                        <h3>University of Wisconsin–Madison</h3>
+                        <p>B.S. Art: Graphic Design<br>Expected May 2027</p>
+                    </div>
+                    <div class="about-fact">
+                        <p class="fact-label">Practice &amp; tools</p>
+                        <h3>Design</h3>
+                        <p>Branding, typography, layout, photo manipulation, user research, interaction design</p>
+                        <h3>Software</h3>
+                        <p>Photoshop, Illustrator, InDesign, Figma, Blender, Maya, Unreal Engine 5, Unity 6</p>
+                    </div>
+                </div>
+                <div class="about-personal">
+                    <section class="personal-hobbies" aria-labelledby="hobbies-title">
+                        <p class="personal-label">Off the clock</p>
+                        <h3 id="hobbies-title">Things I enjoy</h3>
+                        <ul class="hobby-list">
+                            <li>Gaming</li>
+                            <li>Movies</li>
+                            <li>Music</li>
+                            <li>Basketball</li>
+                            <li>Tech experiments</li>
+                            <li>Hiking</li>
+                            <li>Photography</li>
+                            <li>Travel</li>
+                            <li>Family &amp; friends</li>
+                        </ul>
+                    </section>
+                    <section class="personal-favorites" aria-labelledby="favorites-title">
+                        <p class="personal-label">On repeat</p>
+                        <h3 id="favorites-title">Favorites</h3>
+                        <dl class="favorite-list">
+                            <div><dt>Movie</dt><dd>The Batman</dd></div>
+                            <div><dt>Single player game</dt><dd>The Last of Us Part II</dd></div>
+                            <div><dt>Multiplayer game</dt><dd>Marathon</dd></div>
+                            <div><dt>Album</dt><dd><cite>Process</cite> · Sampha</dd></div>
+                        </dl>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <footer class="contact section-wrap" id="contact">
+            <div>
+                <h2>Design <span>matters.</span></h2>
+            </div>
+            <a class="contact-link" href="mailto:coamek30@gmail.com">coamek30@gmail.com <span aria-hidden="true">↗</span></a>
+            <div class="footer-bottom"><a href="#top">Connor Oamek © 2026</a><a href="#top">Back to top ↑</a></div>
+        </footer>
+    </main>
     <script src="script.js"></script>
 </body>
 </html>
