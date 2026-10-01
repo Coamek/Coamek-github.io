@@ -451,8 +451,9 @@ a:focus-visible {
 .about-portrait {
     display: block;
     width: 100%;
-    max-width: 204px;
-    aspect-ratio: 1;
+    max-width: 210px;
+    height: auto;
+    aspect-ratio: 3 / 4;
     justify-self: end;
     border: 1px solid #555650;
     object-fit: cover;
@@ -981,11 +982,21 @@ body.school-personal-page {
 }
 
 .thumbnail-story a {
+    display: inline-block;
+    padding: 2px 5px;
+    margin: 1px 0;
+    border-radius: 4px;
     color: #315ee8;
     font-weight: 600;
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
+    transition: background-color 150ms ease;
+}
+
+.thumbnail-story a:hover,
+.thumbnail-story a:focus-visible {
+    background-color: rgba(49, 94, 232, 0.08);
 }
 
 .media-day-description {
@@ -1123,6 +1134,12 @@ body.school-personal-page {
 @media (max-width: 600px) {
     .thumbnail-story p {
         font-size: 20px;
+        line-height: 1.6;
+    }
+
+    .thumbnail-story a {
+        padding: 4px 6px;
+        margin: 2px 0;
     }
 
     .photo-gallery {
@@ -1593,8 +1610,8 @@ body.school-personal-page {
     }
 
     .about-portrait {
-        max-width: 280px;
-        aspect-ratio: 1;
+        max-width: 240px;
+        aspect-ratio: 3 / 4;
         justify-self: start;
     }
 
