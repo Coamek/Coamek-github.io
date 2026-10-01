@@ -378,7 +378,7 @@ a:focus-visible {
 
 .project-caption {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
     padding-top: 15px;
@@ -1154,6 +1154,10 @@ body.school-personal-page {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .media-day-gallery > figure {
+        grid-column: auto;
+    }
+
     .media-day-gallery > figure:nth-last-child(2),
     .media-day-gallery > figure:last-child {
         grid-column: auto;
@@ -1558,6 +1562,7 @@ body.school-personal-page {
 
     .hero-signature span + span::before {
         margin-right: 10px;
+        margin-left: 10px;
     }
 
     .hero-index {
