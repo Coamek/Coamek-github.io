@@ -702,6 +702,10 @@ a:focus-visible {
     --accent: #39613f;
 }
 
+.photography-page {
+    --accent: #315ee8;
+}
+
 .badgers-page {
     --accent: #a00000;
 }
