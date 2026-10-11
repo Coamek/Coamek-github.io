@@ -1145,6 +1145,16 @@ body.school-personal-page {
     height: auto;
 }
 
+.hockey-gallery > .hockey-gallery-pair {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 9fr);
+    gap: inherit;
+}
+
+.hockey-gallery > .hockey-photo-horizontal {
+    grid-column: 1 / -1;
+}
+
 .photo-subsection + .photo-subsection {
     margin-top: 42px;
 }
