@@ -91,7 +91,9 @@ if (galleryImages.length) {
 		activeImage = image;
 		expandedImage.src = image.currentSrc || image.src;
 		expandedImage.alt = image.alt;
-		caption.textContent = image.closest("figure")?.querySelector("figcaption")?.textContent.trim() || image.alt;
+		caption.textContent = image.closest('[data-lightbox-caption="false"]')
+			? ""
+			: image.closest("figure")?.querySelector("figcaption")?.textContent.trim() || image.alt;
 		caption.hidden = !caption.textContent;
 		lightbox.showModal();
 		closeButton.focus();

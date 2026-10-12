@@ -1145,6 +1145,14 @@ body.school-personal-page {
     height: auto;
 }
 
+.photo-gallery.basketball-gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.basketball-gallery > .basketball-photo-horizontal {
+    grid-column: 1 / -1;
+}
+
 .hockey-gallery > .hockey-gallery-pair {
     grid-column: 1 / -1;
     grid-template-columns: minmax(0, 4fr) minmax(0, 9fr);
@@ -1206,6 +1214,10 @@ body.school-personal-page {
     }
 
     .photo-gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .photo-gallery.basketball-gallery {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
