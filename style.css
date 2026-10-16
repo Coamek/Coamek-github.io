@@ -481,10 +481,6 @@ a:focus-visible {
     font: 500 44px/1.05 var(--display);
 }
 
-.about h2 span {
-    color: var(--accent-on-dark);
-}
-
 .about-summary {
     max-width: 680px;
     margin: 20px 0 5px;
