@@ -1,8 +1,7 @@
 # Thumbnail image checklist
 
-**14 individual images are connected.** These fill the page's 15 placements
-because the Beta Squad image is reused in the featured section and selected
-gallery. The full personal message remains
+**15 individual images are connected.** These fill the page's 15 placements.
+The full personal message remains
 at the bottom of the page.
 
 ## Status
@@ -18,10 +17,11 @@ All files below are in `assets/thumbnails/web/`.
 | Uploaded filename | Placement |
 | --- | --- |
 | `Episode 1 - XP Podcast S2.jpg` | Large Lonzo Ball podcast feature |
-| `niko beta among us.jpg` | Beta Squad feature; also Creators & Livestreams |
+| `niko beta among us.jpg` | Beta Squad feature |
 | `joe knows 26 cday gameplay.jpg` | Joe Knows NBA 2K26 feature |
 | `9-2 Christian Bell Doc.jpg` | Sports · MADE Hoops Christian Bell |
 | `FinalScore16x9_Port.jpg` | Sports · MADE Hoops Summer Live Finale |
+| `ray repo agent duke kai.jpg` | Creators & Livestreams · Ray R.E.P.O. |
 | `fanum best moments 23 v2.jpg` | Creators & Livestreams |
 | `tylil rap battle.jpg` | Creators & Livestreams |
 | `fanum sidemen inside v2.jpg` | Creators & Livestreams |
