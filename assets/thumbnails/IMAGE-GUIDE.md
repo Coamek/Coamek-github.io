@@ -1,8 +1,8 @@
 # Thumbnail image checklist
 
-**All 13 individual images are added and connected.** These fill all 15 of the
-page's 15 placements because the podcast and Beta Squad images are reused in
-the featured section and selected gallery. The full personal message remains
+**14 individual images are connected.** These fill the page's 15 placements
+because the Beta Squad image is reused in the featured section and selected
+gallery. The full personal message remains
 at the bottom of the page.
 
 ## Status
@@ -17,10 +17,11 @@ All files below are in `assets/thumbnails/web/`.
 
 | Uploaded filename | Placement |
 | --- | --- |
-| `Episode 1 - XP Podcast S2.jpg` | Large Lonzo Ball podcast feature; also Sports & Podcasts |
+| `Episode 1 - XP Podcast S2.jpg` | Large Lonzo Ball podcast feature |
 | `niko beta among us.jpg` | Beta Squad feature; also Creators & Livestreams |
 | `joe knows 26 cday gameplay.jpg` | Joe Knows NBA 2K26 feature |
-| `ct 26 lonzo ball chip.jpg` | Sports & Podcasts |
+| `9-2 Christian Bell Doc.jpg` | Sports · MADE Hoops Christian Bell |
+| `FinalScore16x9_Port.jpg` | Sports · MADE Hoops Summer Live Finale |
 | `fanum best moments 23 v2.jpg` | Creators & Livestreams |
 | `tylil rap battle.jpg` | Creators & Livestreams |
 | `fanum sidemen inside v2.jpg` | Creators & Livestreams |
@@ -28,8 +29,8 @@ All files below are in `assets/thumbnails/web/`.
 | `laker fan 26 best sharp lock cday.jpg` | Gaming & NBA 2K |
 | `nostalgic 25 60 to 99 kobe.jpg` | Gaming & NBA 2K |
 | `solo 26 top 10 rewards.jpg` | Gaming & NBA 2K |
-| `baugher 26 monstars pro am.jpg` | Other Favorites |
-| `laker fan 2k24 sub draft.jpg` | Other Favorites |
+| `baugher 26 monstars pro am.jpg` | Gaming & NBA 2K |
+| `laker fan 2k24 sub draft.jpg` | Gaming & NBA 2K |
 
 The homepage continues to use its original collage cover. Missing or unreadable
 individual exports retain their collage previews. Uploaded originals support

@@ -1104,6 +1104,10 @@ body.school-personal-page {
     font: 500 20px/1.3 var(--display);
 }
 
+.thumbnail-project-link {
+    margin-top: 20px;
+}
+
 .thumbnails-page .thumbnail-story {
     max-width: 850px;
     margin-top: 0;
