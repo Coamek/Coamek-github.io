@@ -56,6 +56,21 @@ if (madeHoopsMain) {
 	}
 }
 
+// Keep the existing artwork visible until an individual thumbnail export loads.
+document.querySelectorAll(".thumbnails-page img[data-thumbnail-src]").forEach(image => {
+	const preview = image.previousElementSibling;
+	image.classList.add("is-loading");
+	image.addEventListener("load", () => {
+		image.classList.remove("is-loading");
+		if (preview) preview.hidden = true;
+	}, { once: true });
+	image.addEventListener("error", () => {
+		image.hidden = true;
+	}, { once: true });
+	image.hidden = false;
+	image.src = image.dataset.thumbnailSrc;
+});
+
 const galleryImages = [...document.querySelectorAll("body.case-page img:not(.badgers-hero-mark):not(.made-hoops-hero-mark)")];
 
 if (galleryImages.length) {
