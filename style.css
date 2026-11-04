@@ -721,9 +721,119 @@ a:focus-visible {
 .badgers-page .site-header,
 .made-hoops-page .site-header,
 .school-personal-page .site-header,
+.marathon-page .site-header,
 .sonics-page .site-header,
 .photography-page .site-header {
     grid-template-columns: auto 1fr;
+}
+
+.image-marathon {
+    aspect-ratio: 1616 / 1264;
+    background: #5b00ff;
+}
+
+.image-marathon img {
+    object-fit: contain;
+}
+
+.marathon-page {
+    --accent: #5900d9;
+}
+
+.marathon-page .case-gallery figure {
+    margin: 0;
+}
+
+.marathon-page .case-gallery img {
+    background: transparent;
+}
+
+.marathon-hero-art {
+    margin-top: 32px;
+}
+
+.marathon-strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 36px;
+}
+
+.marathon-strategy-grid h3 {
+    margin: 0 0 12px;
+    font: 600 24px/1.2 var(--display);
+}
+
+.marathon-strategy-grid p {
+    max-width: 580px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.marathon-identity-grid {
+    grid-template-columns: 1fr 0.8fr 1fr;
+    align-items: center;
+}
+
+.marathon-slideshow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+}
+
+.marathon-slide-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--rule);
+}
+
+.marathon-slide-control {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font: 400 26px/1 var(--body);
+    cursor: pointer;
+    transition: background-color 180ms ease, color 180ms ease;
+}
+
+.marathon-slide-control:hover,
+.marathon-slide-control:focus-visible {
+    background: var(--accent);
+    color: var(--paper);
+}
+
+.marathon-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .marathon-strategy-grid,
+    .marathon-identity-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .marathon-slideshow {
+        gap: 8px;
+    }
+
+    .marathon-slide-control {
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+    }
 }
 
 .badgers-hero-layout {
@@ -1180,6 +1290,10 @@ body.school-personal-page {
 .media-day-description {
     max-width: 760px;
     margin-bottom: 28px;
+}
+
+.marathon-page .case-subgroup {
+    margin-top: 30px;
 }
 
 .case-subgroup + .case-subgroup {

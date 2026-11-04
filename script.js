@@ -71,7 +71,39 @@ document.querySelectorAll(".thumbnails-page img[data-thumbnail-src]").forEach(im
 	image.src = image.dataset.thumbnailSrc;
 });
 
-const galleryImages = [...document.querySelectorAll("body.case-page img:not(.badgers-hero-mark):not(.made-hoops-hero-mark)")];
+const marathonSlideshow = document.querySelector(".marathon-slideshow");
+
+if (marathonSlideshow) {
+	const slideImage = marathonSlideshow.querySelector(".marathon-slide-image");
+	const previousSlide = marathonSlideshow.querySelector("[data-slide-previous]");
+	const nextSlide = marathonSlideshow.querySelector("[data-slide-next]");
+	const slideStatus = marathonSlideshow.querySelector("[data-slide-status]");
+	const slideCount = Number(marathonSlideshow.dataset.slideCount);
+	let currentSlide = 1;
+
+	const showSlide = slideNumber => {
+		currentSlide = (slideNumber - 1 + slideCount) % slideCount + 1;
+		const label = `Slide ${currentSlide} of ${slideCount}`;
+		slideImage.src = `assets/marathon-symbiosis/web/slides/slide-${String(currentSlide).padStart(2, "0")}.png`;
+		slideImage.alt = `Presentation ${label.toLowerCase()}`;
+		slideStatus.textContent = label;
+	};
+
+	previousSlide.addEventListener("click", () => showSlide(currentSlide - 1));
+	nextSlide.addEventListener("click", () => showSlide(currentSlide + 1));
+	marathonSlideshow.addEventListener("keydown", event => {
+		if (event.key === "ArrowLeft") {
+			event.preventDefault();
+			showSlide(currentSlide - 1);
+		}
+		if (event.key === "ArrowRight") {
+			event.preventDefault();
+			showSlide(currentSlide + 1);
+		}
+	});
+}
+
+const galleryImages = [...document.querySelectorAll("body.case-page img:not(.badgers-hero-mark):not(.made-hoops-hero-mark):not(.marathon-slide-image):not([data-no-lightbox])")];
 
 if (galleryImages.length) {
 	const lightbox = document.createElement("dialog");
