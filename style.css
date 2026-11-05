@@ -945,6 +945,15 @@ body.school-personal-page {
     line-height: 1.6;
 }
 
+.photography-update {
+    margin-top: 12px;
+}
+
+.photography-update a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 .case-meta {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

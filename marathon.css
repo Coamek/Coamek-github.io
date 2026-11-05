@@ -494,6 +494,60 @@ body.marathon-page {
     border: 0;
 }
 
+.marathon-slide-stage {
+    min-width: 0;
+    container-type: inline-size;
+}
+
+.marathon-slide-image[hidden],
+.marathon-slide-videos[hidden] {
+    display: none;
+}
+
+.marathon-slide-videos {
+    padding: 5.4%;
+    background: var(--marathon-purple);
+}
+
+.marathon-slide-videos h3 {
+    margin: 0;
+    font: 600 clamp(18px, 4.2cqw, 48px)/1.1 var(--display);
+    text-transform: uppercase;
+}
+
+.marathon-slide-videos > p {
+    margin: 6px 0 0;
+    font: 600 clamp(12px, 2.5cqw, 28px)/1.3 var(--display);
+    text-transform: uppercase;
+}
+
+.marathon-slide-video-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2.2%;
+    margin: 4% 0 2%;
+}
+
+.marathon-slide-video-grid video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 9 / 16;
+    object-fit: contain;
+    background: #000;
+}
+
+.marathon-slide-video-grid video:focus-visible {
+    outline: 2px solid var(--marathon-lime);
+    outline-offset: 3px;
+}
+
+.marathon-slide-videos > a {
+    font-size: clamp(11px, 1.7cqw, 18px);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    overflow-wrap: anywhere;
+}
+
 .marathon-slide-control {
     border: var(--marathon-line);
     color: var(--marathon-lime);
@@ -726,9 +780,15 @@ body.marathon-page {
         gap: 16px;
     }
 
-    .marathon-slide-image {
+    .marathon-slide-stage {
         grid-column: 1 / -1;
         grid-row: 1;
+    }
+
+    .marathon-slide-video-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin: 20px 0 16px;
     }
 
     .marathon-slide-control {

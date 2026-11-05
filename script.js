@@ -75,23 +75,60 @@ const marathonSlideshow = document.querySelector(".marathon-slideshow");
 
 if (marathonSlideshow) {
 	const slideImage = marathonSlideshow.querySelector(".marathon-slide-image");
+	const videoSlide = marathonSlideshow.querySelector("[data-video-slide]");
+	const slideVideos = [...marathonSlideshow.querySelectorAll("video")];
 	const previousSlide = marathonSlideshow.querySelector("[data-slide-previous]");
 	const nextSlide = marathonSlideshow.querySelector("[data-slide-next]");
 	const slideStatus = marathonSlideshow.querySelector("[data-slide-status]");
 	const slideCount = Number(marathonSlideshow.dataset.slideCount);
 	let currentSlide = 1;
 
+	const videoSlideIsActive = () => videoSlide && currentSlide === Number(videoSlide.dataset.videoSlide);
+
+	const playSlideVideo = video => {
+		if (!videoSlideIsActive()) return;
+		video.muted = true;
+		video.defaultMuted = true;
+		video.autoplay = true;
+		video.preload = "auto";
+		video.play().catch(error => {
+			if (error.name !== "AbortError") console.warn("Marathon video could not start:", video.currentSrc, error);
+		});
+	};
+
+	const playSlideVideos = () => slideVideos.forEach(playSlideVideo);
+
 	const showSlide = slideNumber => {
+		slideVideos.forEach(video => {
+			video.autoplay = false;
+			video.pause();
+		});
 		currentSlide = (slideNumber - 1 + slideCount) % slideCount + 1;
 		const label = `Slide ${currentSlide} of ${slideCount}`;
-		slideImage.src = `assets/marathon-symbiosis/web/slides/slide-${String(currentSlide).padStart(2, "0")}.png`;
+		const hasVideo = videoSlide && currentSlide === Number(videoSlide.dataset.videoSlide);
+		slideImage.hidden = Boolean(hasVideo);
+		if (videoSlide) videoSlide.hidden = !hasVideo;
+		if (hasVideo) {
+			slideVideos.forEach(video => {
+				if (video.readyState > 0) video.currentTime = 0;
+			});
+			playSlideVideos();
+		} else {
+			slideImage.src = `assets/marathon-symbiosis/web/slides/slide-${String(currentSlide).padStart(2, "0")}.png`;
+		}
 		slideImage.alt = `Presentation ${label.toLowerCase()}`;
 		slideStatus.textContent = label;
 	};
 
+	slideVideos.forEach(video => video.addEventListener("canplay", () => {
+		if (video.paused) playSlideVideo(video);
+	}));
+	videoSlide?.addEventListener("pointerdown", playSlideVideos);
+
 	previousSlide.addEventListener("click", () => showSlide(currentSlide - 1));
 	nextSlide.addEventListener("click", () => showSlide(currentSlide + 1));
 	marathonSlideshow.addEventListener("keydown", event => {
+		if (event.target instanceof HTMLVideoElement) return;
 		if (event.key === "ArrowLeft") {
 			event.preventDefault();
 			showSlide(currentSlide - 1);
