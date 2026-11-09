@@ -67,6 +67,7 @@ def load_config(path: Path) -> dict:
     username = config.get("username", "")
     version = config.get("api_version", "v27.0")
     overrides = config.get("category_overrides", {})
+    splits = config.get("image_splits", {})
     login_method, account_id = login_settings(config.get("login_method", "instagram"),
                                               config.get("instagram_account_id"))
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9_.]{1,30}", username):
@@ -79,8 +80,16 @@ def load_config(path: Path) -> dict:
         numeric_id(media_id)
         if category not in (*CATEGORIES, "skip"):
             raise SyncError("Every category override must be basketball, hockey, media-day, personal, or skip.")
+    if not isinstance(splits, dict):
+        raise SyncError("image_splits must map media IDs to split settings.")
+    for media_id, settings in splits.items():
+        numeric_id(media_id)
+        if (not isinstance(settings, dict) or type(settings.get("at")) not in (int, float)
+                or not 0 < settings["at"] < 1
+                or any(not isinstance(settings.get(key, ""), str) for key in ("alt_top", "alt_bottom"))):
+            raise SyncError("Each image split needs an at fraction between 0 and 1 and optional text descriptions.")
     return {"username": username, "api_version": version, "category_overrides": overrides,
-            "login_method": login_method, "instagram_account_id": account_id}
+            "login_method": login_method, "instagram_account_id": account_id, "image_splits": splits}
 
 
 def login_settings(login_method: object, account_id: object) -> tuple[str, str | None]:
@@ -141,6 +150,19 @@ def load_manifest(path: Path) -> dict:
                 raise SyncError("The Instagram manifest contains invalid image dimensions.")
         if not isinstance(photo.get("alt"), str):
             raise SyncError("The Instagram manifest contains invalid image alt text.")
+        if "parts" in photo:
+            parts = photo["parts"]
+            if not isinstance(parts, list) or len(parts) != 2:
+                raise SyncError("A split photograph must have top and bottom image parts.")
+            for part, name in zip(parts, ("top", "bottom")):
+                if (not isinstance(part, dict) or part.get("part") != name
+                        or part.get("src") != f"{ASSET_DIRECTORY}/{media_id}-{name}.png"
+                        or part.get("width") != photo["width"]
+                        or type(part.get("height")) is not int or not 0 < part["height"] < photo["height"]
+                        or not isinstance(part.get("alt"), str)):
+                    raise SyncError("The Instagram manifest contains an invalid split image part.")
+            if sum(part["height"] for part in parts) != photo["height"]:
+                raise SyncError("Split image parts must cover the entire source photograph.")
         clean_permalink(photo.get("permalink"))
         timestamp_key(photo.get("timestamp"))
     for pending in manifest["pending"]:
@@ -212,11 +234,13 @@ def sorted_photos(photos: list[dict]) -> list[dict]:
 def render_html(html: str, photos: list[dict]) -> str:
     validate_markers(html)
     groups: dict[str, list[dict]] = {key: [] for key in MARKER_KEYS}
-    for photo in sorted_photos(photos):
-        key = photo["category"]
-        if key == "personal":
-            key += "-wide" if photo["width"] > photo["height"] else "-vertical"
-        groups[key].append(photo)
+    for source in sorted_photos(photos):
+        for part in source.get("parts", [{}]):
+            photo = {**source, **part}
+            key = photo["category"]
+            if key == "personal":
+                key += "-wide" if photo["width"] > photo["height"] else "-vertical"
+            groups[key].append(photo)
     newline = "\r\n" if "\r\n" in html else "\n"
     for key in MARKER_KEYS:
         start = f"<!-- instagram:{key}:start -->"
@@ -232,8 +256,9 @@ def render_html(html: str, photos: list[dict]) -> str:
             classes = "instagram-photo"
             if photo["category"] != "personal" and photo["width"] > photo["height"]:
                 classes += " instagram-photo-horizontal"
+            part_attribute = f' data-instagram-part="{attr(photo["part"])}"' if "part" in photo else ""
             figures.append(
-                f'<figure class="{classes}" data-instagram-id="{attr(photo["id"])}">'
+                f'<figure class="{classes}" data-instagram-id="{attr(photo["id"])}"{part_attribute}>'
                 f'<img src="{attr(photo["src"])}" alt="{attr(photo["alt"])}" '
                 f'width="{photo["width"]}" height="{photo["height"]}" loading="lazy" decoding="async"></figure>'
             )
@@ -433,6 +458,41 @@ def optimize_image(data: bytes, output: Path) -> tuple[int, int]:
         raise SyncError("An Instagram image could not be processed; the portfolio was not changed.") from None
 
 
+def apply_image_splits(root: Path, manifest: dict, splits: dict,
+                       staging: Path, staged_files: dict[Path, Path]) -> None:
+    """Extract configured photo pairs without changing any decoded source pixels."""
+    for photo in manifest["photos"]:
+        settings = splits.get(photo["id"])
+        if settings is None:
+            photo.pop("parts", None)
+            continue
+        try:
+            from PIL import Image, UnidentifiedImageError
+        except ImportError:
+            raise SyncError("Install Pillow before splitting photographs.") from None
+        source_path = root / photo["src"]
+        try:
+            with Image.open(staged_files.get(source_path, source_path)) as source:
+                if source.size != (photo["width"], photo["height"]):
+                    raise SyncError("A split photograph's source dimensions do not match its manifest.")
+                boundary = round(source.height * settings["at"])
+                if not 0 < boundary < source.height:
+                    raise SyncError("The split position must leave two nonempty photographs.")
+                parts = []
+                for name, top, bottom in (("top", 0, boundary), ("bottom", boundary, source.height)):
+                    relative = f'{ASSET_DIRECTORY}/{photo["id"]}-{name}.png'
+                    staged = staging / Path(relative).name
+                    cropped = source.crop((0, top, source.width, bottom))
+                    cropped.save(staged, "PNG", optimize=True)
+                    staged_files[root / relative] = staged
+                    parts.append({"part": name, "src": relative, "width": source.width,
+                                  "height": bottom - top,
+                                  "alt": settings.get(f"alt_{name}") or f'{photo["alt"]} ({name} photograph)'})
+                photo["parts"] = parts
+        except (UnidentifiedImageError, OSError, ValueError):
+            raise SyncError(f'Could not split Instagram media {photo["id"]}; the portfolio was not changed.') from None
+
+
 def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
                staging: Path, downloader=download_image, optimizer=optimize_image) -> tuple[dict, dict[Path, Path]]:
     user_id = api.verify_account(config["username"])
@@ -561,19 +621,26 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     validate_markers(html)
     manifest_path = root / "data/instagram-photos.json"
     manifest = load_manifest(manifest_path)
+    config = load_config(root / "data/instagram-config.json")
     if render_only:
         for photo in manifest["photos"]:
             if not (root / photo["src"]).is_file():
                 raise SyncError("A manifest image is missing locally; run an authenticated sync to restore it.")
-        commit_sync({}, html_path, render_html(html, manifest["photos"]))
+        original_photos = [dict(photo) for photo in manifest["photos"]]
+        with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
+            staged_files = {}
+            apply_image_splits(root, manifest, config["image_splits"], Path(staging), staged_files)
+            changed = manifest["photos"] != original_photos
+            commit_sync(staged_files, html_path, render_html(html, manifest["photos"]),
+                        manifest_path if changed else None, manifest if changed else None)
         return manifest
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
     access_token = normalize_token(access_token)
-    config = load_config(root / "data/instagram-config.json")
     api = api or InstagramAPI(access_token, config["api_version"], login_method=config["login_method"],
                              account_id=config["instagram_account_id"])
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
         updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer)
+        apply_image_splits(root, updated, config["image_splits"], Path(staging), staged)
         output = render_html(html, updated["photos"])
         commit_sync(staged, html_path, output, manifest_path, updated)
     return updated

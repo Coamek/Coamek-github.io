@@ -578,6 +578,93 @@ class ImportTests(unittest.TestCase):
         self.assertNotIn("::error::", stderr.getvalue())
 
 
+class SplitImageTests(unittest.TestCase):
+    def setUp(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow is not installed")
+        self.Image = Image
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        (self.root / "data").mkdir()
+        (self.root / "photography.html").write_text(page_html())
+        self.source = self.root / f"{sync.ASSET_DIRECTORY}/101.jpg"
+        self.source.parent.mkdir(parents=True)
+        original = Image.new("RGB", (12, 8))
+        original.putdata([(x * 19, y * 31, (x + y) * 12) for y in range(8) for x in range(12)])
+        original.save(self.source, "JPEG", quality=95)
+        self.config = {"username": "oamekphotography", "image_splits": {
+            "101": {"at": 0.5, "alt_top": "Player & teammate", "alt_bottom": "A player on the court"}}}
+        self.save_config()
+        (self.root / "data/instagram-photos.json").write_text(json.dumps({
+            "version": 1, "photos": [photo(width=12, height=8)], "pending": []}))
+
+    def save_config(self):
+        (self.root / "data/instagram-config.json").write_text(json.dumps(self.config))
+
+    def state(self):
+        return {str(p.relative_to(self.root)): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+
+    def test_offline_split_produces_two_lossless_independent_landscape_images(self):
+        original_bytes = self.source.read_bytes()
+        result = sync.run(self.root, render_only=True)
+        parts = result["photos"][0]["parts"]
+        self.assertEqual([p["part"] for p in parts], ["top", "bottom"])
+        with self.Image.open(self.source) as original:
+            for part, top in zip(parts, (0, 4)):
+                with self.Image.open(self.root / part["src"]) as extracted:
+                    self.assertEqual(extracted.format, "PNG")
+                    self.assertEqual(extracted.size, (12, 4))
+                    self.assertEqual(extracted.tobytes(), original.crop((0, top, 12, top + 4)).tobytes())
+        self.assertEqual(self.source.read_bytes(), original_bytes)
+        html = (self.root / "photography.html").read_text()
+        self.assertNotIn('src="assets/photography/web/instagram/101.jpg"', html)
+        self.assertEqual(html.count('class="instagram-photo instagram-photo-horizontal"'), 2)
+        self.assertIn('data-instagram-part="top"', html)
+        self.assertIn('data-instagram-part="bottom"', html)
+        self.assertIn('alt="Player &amp; teammate"', html)
+        self.assertIn('id="curated"', html)
+        stable = self.state()
+        sync.run(self.root, render_only=True)
+        self.assertEqual(self.state(), stable)
+
+    def test_future_sync_keeps_parts_without_redownloading_source_and_restores_missing_part(self):
+        api = FakeAPI([image()])
+        def unexpected_download(_):
+            raise AssertionError("A saved source image should not be downloaded again")
+        sync.run(self.root, token="TOKEN", api=api, downloader=unexpected_download)
+        stable = self.state()
+        (self.root / f"{sync.ASSET_DIRECTORY}/101-bottom.png").unlink()
+        result = sync.run(self.root, token="TOKEN", api=api, downloader=unexpected_download)
+        self.assertEqual(len(result["photos"]), 1)
+        self.assertEqual(len(result["photos"][0]["parts"]), 2)
+        self.assertEqual(self.state(), stable)
+
+    def test_invalid_split_and_corrupt_source_preserve_files(self):
+        self.config["image_splits"]["101"]["at"] = 1
+        self.save_config()
+        original = self.state()
+        with self.assertRaisesRegex(sync.SyncError, "split"):
+            sync.run(self.root, render_only=True)
+        self.assertEqual(self.state(), original)
+        self.config["image_splits"]["101"]["at"] = 0.5
+        self.save_config()
+        self.source.write_bytes(b"corrupt-jpeg")
+        original = self.state()
+        with self.assertRaisesRegex(sync.SyncError, "Could not split"):
+            sync.run(self.root, render_only=True)
+        self.assertEqual(self.state(), original)
+
+    def test_manifest_rejects_split_part_outside_its_media_paths(self):
+        result = sync.run(self.root, render_only=True)
+        result["photos"][0]["parts"][0]["src"] = "../../private.png"
+        (self.root / "data/instagram-photos.json").write_text(json.dumps(result))
+        with self.assertRaisesRegex(sync.SyncError, "invalid split image part"):
+            sync.load_manifest(self.root / "data/instagram-photos.json")
+
+
 class ImageTests(unittest.TestCase):
     def test_real_optimizer_resizes_orients_and_removes_exif(self):
         try:

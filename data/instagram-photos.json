@@ -76,7 +76,23 @@
       "height": 1800,
       "alt": "badgers men’s basketball vs. oklahoma state - 10-27-26",
       "permalink": "https://www.instagram.com/p/DfVhDxoIA2e/",
-      "timestamp": "2026-11-04T22:20:50+0000"
+      "timestamp": "2026-11-04T22:20:50+0000",
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/18129220813852542-top.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "Wisconsin basketball player number 15 surrounded by Oklahoma State defenders"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/18129220813852542-bottom.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "Wisconsin basketball player lying on the court near the sideline"
+        }
+      ]
     },
     {
       "id": "18121458844751452",
@@ -164,7 +180,23 @@
       "height": 1800,
       "alt": "badgers men’s basketball vs. oklahoma state - 10-27-26",
       "permalink": "https://www.instagram.com/p/DfVhDxoIA2e/",
-      "timestamp": "2026-11-04T22:20:50+0000"
+      "timestamp": "2026-11-04T22:20:50+0000",
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/17917986375496649-top.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "Wisconsin basketball players gathered beneath the basket"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/17917986375496649-bottom.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "Black-and-white photograph of Wisconsin and Oklahoma State players watching a shot near the basket"
+        }
+      ]
     },
     {
       "id": "17915910627538598",

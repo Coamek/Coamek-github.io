@@ -3,6 +3,18 @@
   "api_version": "v27.0",
   "login_method": "unified",
   "instagram_account_id": "17841477718206518",
+  "image_splits": {
+    "18129220813852542": {
+      "at": 0.5,
+      "alt_top": "Wisconsin basketball player number 15 surrounded by Oklahoma State defenders",
+      "alt_bottom": "Wisconsin basketball player lying on the court near the sideline"
+    },
+    "17917986375496649": {
+      "at": 0.5,
+      "alt_top": "Wisconsin basketball players gathered beneath the basket",
+      "alt_bottom": "Black-and-white photograph of Wisconsin and Oklahoma State players watching a shot near the basket"
+    }
+  },
   "category_overrides": {
     "18340709587228489": "personal",
     "17939738822984776": "personal",
