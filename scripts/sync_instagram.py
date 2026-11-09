@@ -66,6 +66,8 @@ def load_config(path: Path) -> dict:
     username = config.get("username", "")
     version = config.get("api_version", "v27.0")
     overrides = config.get("category_overrides", {})
+    login_method, account_id = login_settings(config.get("login_method", "instagram"),
+                                              config.get("instagram_account_id"))
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9_.]{1,30}", username):
         raise SyncError("Set a valid Instagram username in instagram-config.json.")
     if not isinstance(version, str) or not re.fullmatch(r"v[0-9]+\.[0-9]+", version):
@@ -76,7 +78,19 @@ def load_config(path: Path) -> dict:
         numeric_id(media_id)
         if category not in (*CATEGORIES, "skip"):
             raise SyncError("Every category override must be basketball, hockey, media-day, personal, or skip.")
-    return {"username": username, "api_version": version, "category_overrides": overrides}
+    return {"username": username, "api_version": version, "category_overrides": overrides,
+            "login_method": login_method, "instagram_account_id": account_id}
+
+
+def login_settings(login_method: object, account_id: object) -> tuple[str, str | None]:
+    if login_method not in ("instagram", "unified"):
+        raise SyncError("Instagram login_method must be instagram or unified.")
+    if login_method == "unified" or account_id is not None:
+        if (isinstance(account_id, bool) or not isinstance(account_id, (str, int))
+                or not re.fullmatch(r"[0-9]{1,40}", str(account_id))):
+            raise SyncError("Unified Login requires a numeric instagram_account_id in instagram-config.json.")
+        account_id = str(account_id)
+    return login_method, account_id
 
 
 def timestamp_key(value: object) -> datetime:
@@ -235,13 +249,14 @@ def read_bounded(response, maximum: int) -> bytes:
     return data
 
 
-def api_error(payload: object, status: int | None = None) -> APIError:
+def api_error(payload: object, status: int | None = None, context: str = "") -> APIError:
     detail = payload.get("error", {}) if isinstance(payload, dict) else {}
     message = str(detail.get("message", "")).casefold() if isinstance(detail, dict) else ""
     unsupported = (isinstance(detail, dict) and detail.get("code") == 100 and "caption" in message
                    and any(word in message for word in ("nonexisting field", "non-existing field", "unknown field", "unsupported field", "does not exist")))
     suffix = f" (HTTP {status})" if status is not None else ""
-    return APIError(f"Instagram API request failed{suffix}; check the access token and app permissions.", unsupported)
+    selected = f" using {context}" if context else ""
+    return APIError(f"Instagram API request failed{suffix}{selected}; check the selected login method's token, account access, and app permissions.", unsupported)
 
 
 def normalize_token(token: str) -> str:
@@ -254,9 +269,14 @@ def normalize_token(token: str) -> str:
 
 
 class InstagramAPI:
-    def __init__(self, token: str, version: str = "v27.0", opener=None):
+    def __init__(self, token: str, version: str = "v27.0", opener=None,
+                 login_method: str = "instagram", account_id: str | None = None):
         self.token = normalize_token(token)
-        self.base_url = f"https://graph.instagram.com/{version}/"
+        self.login_method, self.account_id = login_settings(login_method, account_id)
+        self.host = "graph.facebook.com" if self.login_method == "unified" else "graph.instagram.com"
+        self.base_url = f"https://{self.host}/{version}/"
+        self.context = (f"Unified Login on {self.host} for configured Instagram account {self.account_id}"
+                        if self.login_method == "unified" else f"Instagram Login on {self.host}")
         self.opener = opener or urlopen
 
     def request_json(self, url: str) -> dict:
@@ -269,7 +289,7 @@ class InstagramAPI:
                 payload = json.loads(error.read(MAX_JSON_BYTES))
             except (ValueError, UnicodeError, OSError):
                 payload = {}
-            raise api_error(payload, error.code) from None
+            raise api_error(payload, error.code, self.context) from None
         except (URLError, TimeoutError, OSError):
             raise SyncError("Could not reach Instagram; no portfolio files were changed.") from None
         try:
@@ -279,19 +299,26 @@ class InstagramAPI:
         if not isinstance(payload, dict):
             raise SyncError("Instagram returned an unexpected API response.")
         if "error" in payload:
-            raise api_error(payload)
+            raise api_error(payload, context=self.context)
         return payload
 
     def url(self, endpoint: str, **params) -> str:
         return self.base_url + endpoint + "?" + urlencode(params)
 
     def verify_account(self, expected_username: str) -> str:
-        payload = self.request_json(self.url("me", fields="user_id,username"))
+        unified = self.login_method == "unified"
+        endpoint = self.account_id if unified else "me"
+        fields = "id,username" if unified else "user_id,username"
+        payload = self.request_json(self.url(endpoint, fields=fields))
         identity = payload.get("data", payload)
         if isinstance(identity, list):
             identity = identity[0] if len(identity) == 1 else {}
         if not isinstance(identity, dict) or str(identity.get("username", "")).casefold() != expected_username.casefold():
             raise SyncError("The Instagram token belongs to a different account; the portfolio was not changed.")
+        if unified:
+            if str(identity.get("id", "")) != self.account_id:
+                raise SyncError("Unified Login returned a different Instagram account ID; the portfolio was not changed.")
+            return self.account_id
         return numeric_id(identity.get("user_id", identity.get("id")))
 
     def safe_next_url(self, value: object) -> str | None:
@@ -300,10 +327,10 @@ class InstagramAPI:
         if not isinstance(value, str):
             raise SyncError("Instagram returned an invalid pagination link.")
         parsed = urlsplit(value)
-        if parsed.scheme != "https" or parsed.netloc != "graph.instagram.com":
+        if parsed.scheme != "https" or parsed.netloc != self.host:
             raise SyncError("Instagram returned an unexpected pagination host.")
         params = [(key, val) for key, val in parse_qsl(parsed.query) if key.casefold() != "access_token"]
-        return urlunsplit(("https", "graph.instagram.com", parsed.path, urlencode(params), ""))
+        return urlunsplit(("https", self.host, parsed.path, urlencode(params), ""))
 
     def collection(self, endpoint: str, fields: str) -> list[dict]:
         url = self.url(endpoint, fields=fields, limit=100)
@@ -508,7 +535,8 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
     access_token = normalize_token(access_token)
     config = load_config(root / "data/instagram-config.json")
-    api = api or InstagramAPI(access_token, config["api_version"])
+    api = api or InstagramAPI(access_token, config["api_version"], login_method=config["login_method"],
+                             account_id=config["instagram_account_id"])
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
         updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer)
         output = render_html(html, updated["photos"])
@@ -525,7 +553,11 @@ def main(argv=None) -> int:
     try:
         result = run(args.root.resolve(), args.render_only)
     except (SyncError, OSError) as error:
-        print(f"Instagram sync: {error}", file=sys.stderr)
+        message = f"Instagram sync: {error}"
+        print(message, file=sys.stderr)
+        if isinstance(error, SyncError) and os.environ.get("GITHUB_ACTIONS") == "true":
+            annotation = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error::{annotation}", file=sys.stderr)
         return 1
     print(f"Instagram gallery: {len(result['photos'])} imported photos; {len(result['pending'])} need a category.")
     return 0
