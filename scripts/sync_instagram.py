@@ -18,9 +18,10 @@ import re
 import stat
 import sys
 import tempfile
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 
 CATEGORIES = ("basketball", "hockey", "media-day", "personal")
@@ -268,6 +269,20 @@ def normalize_token(token: str) -> str:
     return token
 
 
+class GraphRedirectHandler(HTTPRedirectHandler):
+    """Keep bearer-authenticated API redirects on the selected Graph host."""
+
+    def __init__(self, host: str):
+        super().__init__()
+        self.host = host
+
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        parsed = urlsplit(new_url)
+        if parsed.scheme != "https" or parsed.netloc != self.host:
+            raise SyncError("Instagram returned an unexpected API redirect host.")
+        return super().redirect_request(request, response, code, message, headers, new_url)
+
+
 class InstagramAPI:
     def __init__(self, token: str, version: str = "v27.0", opener=None,
                  login_method: str = "instagram", account_id: str | None = None):
@@ -277,9 +292,12 @@ class InstagramAPI:
         self.base_url = f"https://{self.host}/{version}/"
         self.context = (f"Unified Login on {self.host} for configured Instagram account {self.account_id}"
                         if self.login_method == "unified" else f"Instagram Login on {self.host}")
-        self.opener = opener or urlopen
+        self.opener = opener or build_opener(GraphRedirectHandler(self.host)).open
 
     def request_json(self, url: str) -> dict:
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or parsed.netloc != self.host:
+            raise SyncError("Instagram returned an unexpected API request host.")
         request = Request(url, headers={"Authorization": f"Bearer {self.token}", "Accept": "application/json"})
         try:
             with self.opener(request, timeout=30) as response:
@@ -363,7 +381,7 @@ class InstagramAPI:
         return self.collection(f"{numeric_id(post_id)}/children", CHILD_FIELDS)
 
 
-def download_image(url: object) -> bytes:
+def download_image(url: object, *, opener=None, sleeper=None) -> bytes:
     if not isinstance(url, str):
         raise SyncError("An Instagram photo is missing its download URL.")
     parsed = urlsplit(url)
@@ -372,11 +390,24 @@ def download_image(url: object) -> bytes:
             or not any(host == domain or host.endswith("." + domain) for domain in ("cdninstagram.com", "fbcdn.net"))):
         raise SyncError("Instagram returned an unexpected image download host.")
     request = Request(url, headers={"User-Agent": "PortfolioInstagramImporter/1.0"})
-    try:
-        with urlopen(request, timeout=60) as response:
-            return read_bounded(response, MAX_IMAGE_BYTES)
-    except (HTTPError, URLError, TimeoutError, OSError):
-        raise SyncError("An Instagram image could not be downloaded; the portfolio was not changed.") from None
+    open_image = opener or urlopen
+    wait = sleeper or time.sleep
+    for attempt in range(3):
+        retry = True
+        try:
+            with open_image(request, timeout=60) as response:
+                return read_bounded(response, MAX_IMAGE_BYTES)
+        except HTTPError as error:
+            cause = f"HTTP {error.code}"
+            retry = error.code in (408, 429, 500, 502, 503, 504)
+        except (URLError, TimeoutError, OSError) as error:
+            underlying = error.reason if isinstance(error, URLError) else error
+            cause = "network timeout" if isinstance(underlying, TimeoutError) else "network error"
+        if not retry or attempt == 2:
+            attempts = attempt + 1
+            count = "attempt" if attempts == 1 else "attempts"
+            raise SyncError(f"An Instagram image could not be downloaded ({cause} after {attempts} {count}); the portfolio was not changed.") from None
+        wait(attempt + 1)
 
 
 def optimize_image(data: bytes, output: Path) -> tuple[int, int]:
@@ -463,7 +494,11 @@ def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
                 width, height = old["width"], old["height"]
             else:
                 staged = staging / f"{media_id}.jpg"
-                width, height = optimizer(downloader(item.get("media_url")), staged)
+                try:
+                    downloaded = downloader(item.get("media_url"))
+                except SyncError as error:
+                    raise SyncError(f"Instagram media {media_id}: {error}") from None
+                width, height = optimizer(downloaded, staged)
                 staged_files[destination] = staged
             photos[media_id] = {
                 "id": media_id, "post_id": post_id, "category": category, "src": src,

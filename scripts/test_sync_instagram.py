@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
+from urllib.request import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sync_instagram as sync
@@ -94,7 +95,7 @@ class ClassificationTests(unittest.TestCase):
 
 
 class APITests(unittest.TestCase):
-    def make_api(self, payloads):
+    def make_api(self, payloads, **settings):
         calls = []
         def opener(request, timeout):
             calls.append(request)
@@ -102,7 +103,7 @@ class APITests(unittest.TestCase):
             if isinstance(payload, Exception):
                 raise payload
             return FakeResponse(payload)
-        return sync.InstagramAPI("SECRET_TOKEN", opener=opener), calls
+        return sync.InstagramAPI("SECRET_TOKEN", opener=opener, **settings), calls
 
     def test_verify_identity_direct_object_and_data_array(self):
         for identity in ({"user_id": "42", "username": "OamekPhotography"},
@@ -166,6 +167,173 @@ class APITests(unittest.TestCase):
                     sync.InstagramAPI(token)
                 self.assertNotIn("SECRET", str(context.exception))
 
+    def test_unified_login_uses_configured_instagram_account_and_facebook_host(self):
+        api, calls = self.make_api([
+            {"id": "42", "username": "oamekphotography"},
+            {"data": [image("101")], "paging": {"next": "https://graph.facebook.com/v27.0/42/media?after=page2&access_token=URL_TOKEN"}},
+            {"data": [image("102")]},
+            {"data": [{"id": "201", "media_type": "IMAGE"}], "paging": {"next": "https://graph.facebook.com/v27.0/100/children?after=page2&access_token=URL_TOKEN"}},
+            {"data": [{"id": "202", "media_type": "VIDEO"}]},
+        ], login_method="unified", account_id="42")
+        self.assertEqual(api.verify_account("oamekphotography"), "42")
+        self.assertEqual([item["id"] for item in api.media("42")], ["101", "102"])
+        self.assertEqual([item["id"] for item in api.children("100")], ["201", "202"])
+        self.assertEqual(urlsplit(calls[0].full_url).path, "/v27.0/42")
+        self.assertEqual(parse_qs(urlsplit(calls[0].full_url).query)["fields"], ["id,username"])
+        self.assertEqual(urlsplit(calls[1].full_url).path, "/v27.0/42/media")
+        self.assertEqual(urlsplit(calls[3].full_url).path, "/v27.0/100/children")
+        for request in calls:
+            self.assertEqual(urlsplit(request.full_url).netloc, "graph.facebook.com")
+            self.assertNotIn("/me", urlsplit(request.full_url).path.replace("/media", ""))
+            self.assertNotIn("access_token", request.full_url)
+            self.assertNotIn("URL_TOKEN", request.full_url)
+            self.assertEqual(request.get_header("Authorization"), "Bearer SECRET_TOKEN")
+
+    def test_pagination_never_switches_between_login_hosts(self):
+        cases = [("instagram", None, "graph.facebook.com"), ("unified", "42", "graph.instagram.com")]
+        for method, account_id, other_host in cases:
+            with self.subTest(login_method=method):
+                api, calls = self.make_api([{"data": [], "paging": {"next": f"https://{other_host}/v27.0/42/media?access_token=SECRET_TOKEN"}}],
+                                           login_method=method, account_id=account_id)
+                with self.assertRaisesRegex(sync.SyncError, "unexpected pagination host"):
+                    api.media("42")
+                self.assertEqual(len(calls), 1)
+                with self.assertRaisesRegex(sync.SyncError, "unexpected API request host"):
+                    api.request_json(f"https://{other_host}/v27.0/42")
+                self.assertEqual(len(calls), 1)
+
+    def test_authenticated_redirects_cannot_switch_graph_hosts(self):
+        handler = sync.GraphRedirectHandler("graph.facebook.com")
+        request = Request("https://graph.facebook.com/v27.0/42", headers={"Authorization": "Bearer SECRET_TOKEN"})
+        with self.assertRaisesRegex(sync.SyncError, "unexpected API redirect host"):
+            handler.redirect_request(request, None, 302, "Found", {}, "https://graph.instagram.com/v27.0/42")
+
+    def test_unified_401_identifies_selected_flow_without_raw_api_error(self):
+        raw_error = {"error": {"code": 190, "message": "Invalid OAuth access token SECRET_TOKEN"}}
+        error = HTTPError("https://graph.facebook.com", 401, "SECRET_TOKEN", {},
+                          BytesIO(json.dumps(raw_error).encode()))
+        api, calls = self.make_api([error], login_method="unified", account_id="42")
+        with self.assertRaises(sync.APIError) as context:
+            api.verify_account("oamekphotography")
+        message = str(context.exception)
+        for text in ("HTTP 401", "Unified Login", "graph.facebook.com", "account 42"):
+            self.assertIn(text, message)
+        self.assertNotIn("SECRET_TOKEN", message)
+        self.assertNotIn("Invalid OAuth", message)
+        self.assertEqual(len(calls), 1)
+
+    def test_opener_still_accepts_the_third_positional_argument(self):
+        def opener(request, timeout):
+            return FakeResponse({"user_id": "42", "username": "oamekphotography"})
+        api = sync.InstagramAPI("SECRET_TOKEN", "v27.0", opener)
+        self.assertEqual(api.verify_account("oamekphotography"), "42")
+        self.assertEqual(api.host, "graph.instagram.com")
+
+
+class ConfigTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "instagram-config.json"
+
+    def config(self, **settings):
+        config = {"username": "oamekphotography", "api_version": "v27.0", "category_overrides": {}}
+        config.update(settings)
+        self.path.write_text(json.dumps(config))
+        return sync.load_config(self.path)
+
+    def test_legacy_config_defaults_to_instagram_login(self):
+        config = self.config()
+        self.assertEqual(config["login_method"], "instagram")
+        self.assertIsNone(config["instagram_account_id"])
+
+    def test_unified_login_keeps_configured_numeric_account(self):
+        for account_id in ("17841477718206518", 17841477718206518):
+            config = self.config(login_method="unified", instagram_account_id=account_id)
+            self.assertEqual(config["login_method"], "unified")
+            self.assertEqual(config["instagram_account_id"], "17841477718206518")
+
+    def test_invalid_login_method_and_missing_or_invalid_account_are_rejected(self):
+        for method in ("facebook", "UNIFIED", "", None):
+            with self.subTest(login_method=method):
+                with self.assertRaisesRegex(sync.SyncError, "login_method"):
+                    self.config(login_method=method)
+        for account_id in (None, "", "not-a-number", "42/path", True, 42.0):
+            with self.subTest(account_id=account_id):
+                with self.assertRaisesRegex(sync.SyncError, "numeric instagram_account_id"):
+                    self.config(login_method="unified", instagram_account_id=account_id)
+
+
+class DownloadTests(unittest.TestCase):
+    url = "https://scontent.cdninstagram.com/image.jpg?access_token=SECRET_URL_TOKEN"
+
+    def opener(self, results):
+        calls = []
+        def open_image(request, timeout):
+            calls.append(request)
+            result = results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return BytesIO(result)
+        return open_image, calls
+
+    def http_error(self, status):
+        return HTTPError(self.url, status, "SECRET_HTTP_REASON", {}, BytesIO(b"SECRET_HTTP_BODY"))
+
+    def test_transient_download_errors_retry_with_bounded_backoff(self):
+        opener, calls = self.opener([URLError("SECRET_URL_TOKEN"), self.http_error(503), b"JPEG"])
+        sleeps = []
+        self.assertEqual(sync.download_image(self.url, opener=opener, sleeper=sleeps.append), b"JPEG")
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(sleeps, [1, 2])
+        for status in (408, 429, 500, 502, 503, 504):
+            with self.subTest(status=status):
+                opener, calls = self.opener([self.http_error(status), b"JPEG"])
+                sleeps = []
+                self.assertEqual(sync.download_image(self.url, opener=opener, sleeper=sleeps.append), b"JPEG")
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(sleeps, [1])
+
+    def test_final_download_error_reports_safe_status_or_network_cause(self):
+        cases = [([self.http_error(503) for _ in range(3)], "HTTP 503"),
+                 ([URLError(TimeoutError("SECRET_TIMEOUT")) for _ in range(3)], "network timeout"),
+                 ([OSError("SECRET_NETWORK") for _ in range(3)], "network error")]
+        for results, expected in cases:
+            with self.subTest(cause=expected):
+                opener, calls = self.opener(results)
+                sleeps = []
+                with self.assertRaises(sync.SyncError) as context:
+                    sync.download_image(self.url, opener=opener, sleeper=sleeps.append)
+                message = str(context.exception)
+                self.assertIn(expected, message)
+                self.assertIn("after 3 attempts", message)
+                self.assertNotIn("SECRET", message)
+                self.assertNotIn("https://", message)
+                self.assertEqual(len(calls), 3)
+                self.assertEqual(sleeps, [1, 2])
+
+    def test_nontransient_http_errors_fail_immediately_without_exposing_secrets(self):
+        for status in (400, 401, 403, 404, 501):
+            with self.subTest(status=status):
+                opener, calls = self.opener([self.http_error(status)])
+                sleeps = []
+                with self.assertRaises(sync.SyncError) as context:
+                    sync.download_image(self.url, opener=opener, sleeper=sleeps.append)
+                self.assertIn(f"HTTP {status} after 1 attempt", str(context.exception))
+                self.assertNotIn("SECRET", str(context.exception))
+                self.assertNotIn("https://", str(context.exception))
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(sleeps, [])
+
+    def test_oversized_image_response_is_not_retried(self):
+        opener, calls = self.opener([b"image"])
+        sleeps = []
+        with patch.object(sync, "read_bounded", side_effect=sync.SyncError("Image exceeds the size limit")):
+            with self.assertRaisesRegex(sync.SyncError, "size limit"):
+                sync.download_image(self.url, opener=opener, sleeper=sleeps.append)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(sleeps, [])
+
 
 class ImportTests(unittest.TestCase):
     def setUp(self):
@@ -179,10 +347,12 @@ class ImportTests(unittest.TestCase):
         self.set_manifest()
         self.downloads = []
 
-    def set_config(self, overrides=None):
-        (self.root / "data/instagram-config.json").write_text(json.dumps({
+    def set_config(self, overrides=None, **settings):
+        config = {
             "username": "oamekphotography", "api_version": "v27.0", "category_overrides": overrides or {}
-        }), encoding="utf-8")
+        }
+        config.update(settings)
+        (self.root / "data/instagram-config.json").write_text(json.dumps(config), encoding="utf-8")
 
     def set_manifest(self, photos=None, pending=None):
         manifest = {"version": 1, "photos": photos or [], "pending": pending or []}
@@ -308,6 +478,12 @@ class ImportTests(unittest.TestCase):
         with self.assertRaises(sync.SyncError):
             self.run_sync(FakeAPI([image("101"), image("102")]), optimizer=fail_second)
         self.assertEqual(self.file_state(), original)
+        def failed_download(url):
+            raise sync.SyncError("An Instagram image could not be downloaded (HTTP 503 after 3 attempts).")
+        with self.assertRaisesRegex(sync.SyncError, "Instagram media 101:.*HTTP 503"):
+            sync.run(self.root, token="TOKEN", api=FakeAPI([image("101")]),
+                     downloader=failed_download, optimizer=self.optimizer)
+        self.assertEqual(self.file_state(), original)
 
     def test_markers_are_validated_before_network_or_write(self):
         (self.root / "photography.html").write_text(self.html.replace("<!-- instagram:hockey:end -->", ""))
@@ -359,6 +535,47 @@ class ImportTests(unittest.TestCase):
         self.assertNotIn("VERY_SECRET", stderr.getvalue())
         self.assertNotIn("Traceback", stderr.getvalue())
         self.assertIn("invalid whitespace", stderr.getvalue())
+
+    def test_run_passes_the_configured_login_method_and_account_to_the_api(self):
+        self.set_config(login_method="unified", instagram_account_id="42")
+        with patch.object(sync, "InstagramAPI", return_value=FakeAPI()) as constructor:
+            sync.run(self.root, token="TOKEN")
+        constructor.assert_called_once_with("TOKEN", "v27.0", login_method="unified", account_id="42")
+
+    def test_unified_username_or_account_id_mismatch_preserves_all_files(self):
+        self.set_config(login_method="unified", instagram_account_id="42")
+        original = self.file_state()
+        for identity in ({"id": "42", "username": "other_person"}, {"id": "99", "username": "oamekphotography"}):
+            calls = []
+            def opener(request, timeout):
+                calls.append(request)
+                return FakeResponse(identity)
+            api = sync.InstagramAPI("TOKEN", opener=opener, login_method="unified", account_id="42")
+            with self.subTest(identity_case="username" if identity["id"] == "42" else "account ID"):
+                with self.assertRaises(sync.SyncError):
+                    self.run_sync(api)
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(self.file_state(), original)
+
+    def test_github_actions_emits_escaped_safe_error_annotations(self):
+        error = sync.api_error({"error": {"message": "SECRET_TOKEN"}}, 401,
+                               "Unified Login on graph.facebook.com for configured Instagram account 42")
+        stderr = StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), patch.object(sync, "run", side_effect=error), redirect_stderr(stderr):
+            result = sync.main(["--root", str(self.root)])
+        self.assertEqual(result, 1)
+        annotation = next(line for line in stderr.getvalue().splitlines() if line.startswith("::error::"))
+        self.assertIn("HTTP 401", annotation)
+        self.assertIn("Unified Login", annotation)
+        self.assertNotIn("SECRET_TOKEN", stderr.getvalue())
+        stderr = StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), patch.object(sync, "run", side_effect=sync.SyncError("10%\r\nRetry")), redirect_stderr(stderr):
+            sync.main(["--root", str(self.root)])
+        self.assertIn("::error::Instagram sync: 10%25%0D%0ARetry", stderr.getvalue())
+        stderr = StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}), patch.object(sync, "run", side_effect=error), redirect_stderr(stderr):
+            sync.main(["--root", str(self.root)])
+        self.assertNotIn("::error::", stderr.getvalue())
 
 
 class ImageTests(unittest.TestCase):
