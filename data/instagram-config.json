@@ -1,5 +1,7 @@
 {
   "username": "oamekphotography",
   "api_version": "v27.0",
+  "login_method": "unified",
+  "instagram_account_id": "17841477718206518",
   "category_overrides": {}
 }
