@@ -1,0 +1,125 @@
+name: Sync Instagram and publish portfolio
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '*.html'
+      - '*.css'
+      - '*.js'
+      - 'CNAME'
+      - 'favicon*'
+      - 'social-preview*'
+      - 'assets/**'
+      - 'data/instagram-*.json'
+      - 'scripts/**'
+      - '.github/workflows/instagram-sync.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-pages
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    outputs:
+      publish: ${{ steps.commit.outputs.changed == 'true' || github.event_name != 'schedule' }}
+    steps:
+      - name: Check out the current portfolio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements-instagram.txt
+
+      - name: Install image tools
+        run: python -m pip install -r scripts/requirements-instagram.txt
+
+      - name: Check the importer and public site packaging
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Check Instagram connection
+        id: connection
+        if: github.event_name != 'push'
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$INSTAGRAM_ACCESS_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Instagram sync needs an INSTAGRAM_ACCESS_TOKEN repository secret. Follow docs/instagram-sync.md, then run this workflow again."
+            exit 1
+          fi
+
+      - name: Import new Instagram photos
+        if: github.event_name != 'push' && steps.connection.outputs.enabled == 'true'
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: python scripts/sync_instagram.py
+
+      - name: Render saved photos for a site-source push
+        if: github.event_name == 'push'
+        run: python scripts/sync_instagram.py --render-only
+
+      - name: Save imported photos to the repository
+        id: commit
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git add -- photography.html data/instagram-photos.json
+          if [ -d assets/photography/web/instagram ]; then
+            git add -- assets/photography/web/instagram
+          fi
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            git pull --rebase origin "$DEFAULT_BRANCH"
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Update photography from Instagram'
+            git pull --rebase origin "$DEFAULT_BRANCH"
+            git push origin "HEAD:$DEFAULT_BRANCH"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package public portfolio files
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        run: python scripts/package_pages.py --output "$RUNNER_TEMP/portfolio-site"
+
+      - name: Upload portfolio for GitHub Pages
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/portfolio-site
+
+  deploy:
+    needs: sync
+    if: needs.sync.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish portfolio
+        id: deployment
+        uses: actions/deploy-pages@v4

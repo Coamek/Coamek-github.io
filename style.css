@@ -1427,6 +1427,19 @@ body.school-personal-page {
     height: auto;
 }
 
+/* Imported photographs sit above each curated gallery. */
+.instagram-gallery:not(:has(> figure)) {
+    display: none;
+}
+
+.instagram-gallery:has(> figure) {
+    margin-bottom: 14px;
+}
+
+.instagram-gallery > .instagram-photo-horizontal {
+    grid-column: 1 / -1;
+}
+
 .photo-gallery.basketball-gallery {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
