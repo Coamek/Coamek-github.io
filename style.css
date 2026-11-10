@@ -2489,3 +2489,60 @@ body.school-personal-page {
         line-height: 1;
     }
 }
+
+/* Photography rows share the available width without empty grid cells. */
+.photography-page .photo-flow {
+    --gallery-columns: 4;
+    display: block;
+    margin-bottom: 0;
+}
+
+.photography-page .photo-flow:where(.basketball-gallery) {
+    --gallery-columns: 3;
+}
+
+.photography-page .photo-flow:where(.photo-gallery-wide) {
+    --gallery-columns: 2;
+}
+
+.photography-page .photo-flow .photo-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.photography-page .photo-row + .photo-row {
+    margin-top: 14px;
+}
+
+.photography-page .photo-row > figure {
+    flex: var(--photo-share) 1 0%;
+    min-width: 0;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .photography-page .photo-flow {
+        --gallery-columns: 3;
+    }
+
+    .photography-page .photo-flow:where(.photo-gallery-wide) {
+        --gallery-columns: 2;
+    }
+}
+
+@media (max-width: 600px) {
+    .photography-page .photo-flow {
+        --gallery-columns: 2;
+    }
+
+    .photography-page .photo-flow:where(.photo-gallery-wide) {
+        --gallery-columns: 1;
+    }
+}
+
+@media (max-width: 400px) {
+    .photography-page .photo-flow {
+        --gallery-columns: 1;
+    }
+}
