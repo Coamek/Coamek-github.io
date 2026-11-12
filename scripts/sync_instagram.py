@@ -8,7 +8,7 @@ INSTAGRAM_ACCESS_TOKEN environment variable and is never written to the site.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from html import escape
 from io import BytesIO
 import json
@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import stat
+from statistics import median
 import sys
 import tempfile
 import time
@@ -28,6 +29,7 @@ CATEGORIES = ("basketball", "hockey", "media-day", "personal")
 MARKER_KEYS = ("basketball", "hockey", "media-day", "personal-vertical", "personal-wide")
 ASSET_DIRECTORY = "assets/photography/web/instagram"
 MAX_IMAGE_BYTES = 40 * 1024 * 1024
+MAX_IMAGE_PIXELS = 60_000_000
 MAX_JSON_BYTES = 10 * 1024 * 1024
 MEDIA_FIELDS = "id,caption,media_type,media_url,permalink,timestamp,alt_text"
 CHILD_FIELDS = "id,media_type,media_url,alt_text"
@@ -68,6 +70,7 @@ def load_config(path: Path) -> dict:
     version = config.get("api_version", "v27.0")
     overrides = config.get("category_overrides", {})
     splits = config.get("image_splits", {})
+    games = config.get("game_overrides", {})
     login_method, account_id = login_settings(config.get("login_method", "instagram"),
                                               config.get("instagram_account_id"))
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9_.]{1,30}", username):
@@ -84,12 +87,49 @@ def load_config(path: Path) -> dict:
         raise SyncError("image_splits must map media IDs to split settings.")
     for media_id, settings in splits.items():
         numeric_id(media_id)
+        if settings is False:
+            continue
         if (not isinstance(settings, dict) or type(settings.get("at")) not in (int, float)
                 or not 0 < settings["at"] < 1
                 or any(not isinstance(settings.get(key, ""), str) for key in ("alt_top", "alt_bottom"))):
-            raise SyncError("Each image split needs an at fraction between 0 and 1 and optional text descriptions.")
+            raise SyncError("Each image split needs an at fraction between 0 and 1, or false to keep the image whole.")
+    if not isinstance(games, dict):
+        raise SyncError("game_overrides must map post IDs to game titles and dates.")
+    for post_id, game in games.items():
+        numeric_id(post_id)
+        validate_game(game)
     return {"username": username, "api_version": version, "category_overrides": overrides,
-            "login_method": login_method, "instagram_account_id": account_id, "image_splits": splits}
+            "login_method": login_method, "instagram_account_id": account_id, "image_splits": splits,
+            "game_overrides": games}
+
+
+def validate_game(game: object) -> None:
+    if (not isinstance(game, dict) or not isinstance(game.get("title"), str)
+            or not game["title"].strip() or len(game["title"]) > 160
+            or not isinstance(game.get("date"), str)):
+        raise SyncError("Each game needs a title and a date in YYYY-MM-DD format.")
+    try:
+        if date.fromisoformat(game["date"]).isoformat() != game["date"]:
+            raise ValueError
+    except ValueError:
+        raise SyncError("Each game date must be a valid date in YYYY-MM-DD format.") from None
+
+
+def game_from_caption(caption: str) -> dict | None:
+    """Use a caption's event date, never its Instagram publication date."""
+    match = re.search(
+        r"\b(vs\.?|at)\s+(.+?)\s+[-\u2013\u2014]\s*(\d{1,2})[/-](\d{1,2})[/-](\d{4}|\d{2})\b",
+        caption, re.IGNORECASE)
+    if not match:
+        return None
+    relation, opponent, month, day, year = match.groups()
+    try:
+        event_date = date(int(year) + (2000 if len(year) == 2 else 0), int(month), int(day))
+    except ValueError:
+        return None
+    opponent = opponent.strip().title().replace("Uw-", "UW-")
+    return {"title": f"Wisconsin {'at' if relation.lower() == 'at' else 'vs.'} {opponent}",
+            "date": event_date.isoformat()}
 
 
 def login_settings(login_method: object, account_id: object) -> tuple[str, str | None]:
@@ -150,6 +190,18 @@ def load_manifest(path: Path) -> dict:
                 raise SyncError("The Instagram manifest contains invalid image dimensions.")
         if not isinstance(photo.get("alt"), str):
             raise SyncError("The Instagram manifest contains invalid image alt text.")
+        if "game" in photo:
+            validate_game(photo["game"])
+        if "split_at" in photo and (type(photo["split_at"]) not in (int, float) or not 0 < photo["split_at"] < 1):
+            raise SyncError("The Instagram manifest contains an invalid split position.")
+        split_source = photo.get("split_source", photo)
+        if "split_source" in photo:
+            if (not isinstance(split_source, dict)
+                    or split_source.get("src") != f"{ASSET_DIRECTORY}/{media_id}-source.png"
+                    or any(type(split_source.get(key)) is not int or not 1 <= split_source[key] <= MAX_IMAGE_PIXELS
+                           for key in ("width", "height"))
+                    or split_source["width"] * split_source["height"] > MAX_IMAGE_PIXELS):
+                raise SyncError("The Instagram manifest contains an invalid full-resolution split source.")
         if "parts" in photo:
             parts = photo["parts"]
             if not isinstance(parts, list) or len(parts) != 2:
@@ -157,11 +209,11 @@ def load_manifest(path: Path) -> dict:
             for part, name in zip(parts, ("top", "bottom")):
                 if (not isinstance(part, dict) or part.get("part") != name
                         or part.get("src") != f"{ASSET_DIRECTORY}/{media_id}-{name}.png"
-                        or part.get("width") != photo["width"]
-                        or type(part.get("height")) is not int or not 0 < part["height"] < photo["height"]
+                        or part.get("width") != split_source["width"]
+                        or type(part.get("height")) is not int or not 0 < part["height"] < split_source["height"]
                         or not isinstance(part.get("alt"), str)):
                     raise SyncError("The Instagram manifest contains an invalid split image part.")
-            if sum(part["height"] for part in parts) != photo["height"]:
+            if sum(part["height"] for part in parts) != split_source["height"]:
                 raise SyncError("Split image parts must cover the entire source photograph.")
         clean_permalink(photo.get("permalink"))
         timestamp_key(photo.get("timestamp"))
@@ -231,7 +283,72 @@ def sorted_photos(photos: list[dict]) -> list[dict]:
     return sorted(photos, key=lambda photo: (timestamp_key(photo["timestamp"]), int(photo["id"])), reverse=True)
 
 
-def render_html(html: str, photos: list[dict]) -> str:
+def render_game_dates(dates: set[str]) -> str:
+    ordered = sorted(date.fromisoformat(value) for value in dates)
+    first, last = ordered[0], ordered[-1]
+    if len(ordered) == 1:
+        return f'<time datetime="{first.isoformat()}">{first:%B} {first.day}, {first.year}</time>'
+    if len(ordered) == 2:
+        start = f'{first:%B} {first.day}'
+        if first.year != last.year:
+            start += f', {first.year}'
+        end = f'{last:%B} {last.day}' if (first.year, first.month) != (last.year, last.month) else str(last.day)
+        separator = '\u2013' if (last - first).days == 1 else ' &amp; '
+        return (f'<span class="photo-game-dates"><time datetime="{first.isoformat()}">{start}</time>'
+                f'{separator}<time datetime="{last.isoformat()}">{end}, {last.year}</time></span>')
+    return '<span class="photo-game-dates">' + ' &amp; '.join(
+        f'<time datetime="{value.isoformat()}">{value:%B} {value.day}, {value.year}</time>' for value in ordered
+    ) + '</span>'
+
+
+def render_game_groups(photos: list[dict], category: str, overrides: dict) -> list[str]:
+    groups = {}
+    for photo in photos:
+        game = overrides.get(photo["post_id"]) or photo.get("game") or game_from_caption(photo["alt"])
+        key = (game["title"].casefold(), game["date"]) if game else photo["post_id"]
+        if game and category == "hockey":
+            event_date = date.fromisoformat(game["date"])
+            # Thursday through Sunday can form one series, including month/year boundaries.
+            if event_date.weekday() >= 3:
+                key = (game["title"].casefold(), event_date.isocalendar()[:2])
+        if key not in groups:
+            groups[key] = {"game": game, "photos": [], "dates": set()}
+        if game:
+            groups[key]["dates"].add(game["date"])
+        groups[key]["photos"].append(photo)
+    lines = []
+    ordered = sorted(groups.values(), key=lambda group: (
+        max(group["dates"]) if group["game"] else timestamp_key(group["photos"][0]["timestamp"]).date().isoformat()
+    ), reverse=True)
+    for group in ordered:
+        game = group["game"]
+        heading_id = f'{category}-game-{group["photos"][0]["post_id"]}'
+        title = game["title"] if game else f'{category.capitalize()} photographs'
+        lines.extend([f'<section class="photo-game" aria-labelledby="{heading_id}">',
+                      '    <div class="photo-game-heading">',
+                      f'        <h3 id="{heading_id}">{escape(title)}</h3>'])
+        if game:
+            lines.append('        ' + render_game_dates(group["dates"]))
+        lines.extend(['    </div>', f'    <div class="case-gallery photo-gallery {category}-gallery">'])
+        lines.extend('        ' + render_photo(photo) for photo in group["photos"])
+        lines.extend(['    </div>', '</section>'])
+    return lines
+
+
+def render_photo(photo: dict) -> str:
+    attr = lambda value: escape(str(value), quote=True)
+    classes = "instagram-photo"
+    if photo["category"] != "personal" and photo["width"] > photo["height"]:
+        classes += " instagram-photo-horizontal"
+    part_attribute = f' data-instagram-part="{attr(photo["part"])}"' if "part" in photo else ""
+    return (
+        f'<figure class="{classes}" data-instagram-id="{attr(photo["id"])}"{part_attribute}>'
+        f'<img src="{attr(photo["src"])}" alt="{attr(photo["alt"])}" '
+        f'width="{photo["width"]}" height="{photo["height"]}" loading="lazy" decoding="async"></figure>'
+    )
+
+
+def render_html(html: str, photos: list[dict], game_overrides: dict | None = None) -> str:
     validate_markers(html)
     groups: dict[str, list[dict]] = {key: [] for key in MARKER_KEYS}
     for source in sorted_photos(photos):
@@ -250,18 +367,8 @@ def render_html(html: str, photos: list[dict]) -> str:
         line_start = html.rfind("\n", 0, html.index(start)) + 1
         prefix = html[line_start:html.index(start)]
         indent = prefix if not prefix.strip() else ""
-        figures = []
-        for photo in groups[key]:
-            attr = lambda value: escape(str(value), quote=True)
-            classes = "instagram-photo"
-            if photo["category"] != "personal" and photo["width"] > photo["height"]:
-                classes += " instagram-photo-horizontal"
-            part_attribute = f' data-instagram-part="{attr(photo["part"])}"' if "part" in photo else ""
-            figures.append(
-                f'<figure class="{classes}" data-instagram-id="{attr(photo["id"])}"{part_attribute}>'
-                f'<img src="{attr(photo["src"])}" alt="{attr(photo["alt"])}" '
-                f'width="{photo["width"]}" height="{photo["height"]}" loading="lazy" decoding="async"></figure>'
-            )
+        figures = (render_game_groups(groups[key], key, game_overrides or {}) if key in ("basketball", "hockey")
+                   else [render_photo(photo) for photo in groups[key]])
         figures = [indent + figure for figure in figures]
         content = newline + (newline.join(figures) + newline if figures else "") + indent
         html = html[:start_pos] + content + html[end_pos:]
@@ -435,14 +542,14 @@ def download_image(url: object, *, opener=None, sleeper=None) -> bytes:
         wait(attempt + 1)
 
 
-def optimize_image(data: bytes, output: Path) -> tuple[int, int]:
+def decoded_image(data: bytes):
     try:
         from PIL import Image, ImageOps, UnidentifiedImageError
     except ImportError:
         raise SyncError("Install Pillow before importing images: python3 -m pip install Pillow") from None
     try:
         with Image.open(BytesIO(data)) as source:
-            if source.width * source.height > 60_000_000:
+            if source.width * source.height > MAX_IMAGE_PIXELS:
                 raise SyncError("An Instagram image exceeds the supported pixel limit.")
             image = ImageOps.exif_transpose(source)
             if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
@@ -451,31 +558,92 @@ def optimize_image(data: bytes, output: Path) -> tuple[int, int]:
                 image.paste(rgba, mask=rgba.getchannel("A"))
             else:
                 image = image.convert("RGB")
-            image.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
-            image.save(output, "JPEG", quality=85, optimize=True, progressive=True, exif=b"")
-            return image.size
+            image.info.clear()
+            return image
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
         raise SyncError("An Instagram image could not be processed; the portfolio was not changed.") from None
 
 
+def optimize_image(data: bytes, output: Path) -> tuple[int, int]:
+    image = decoded_image(data)
+    from PIL import Image
+    image.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
+    try:
+        image.save(output, "JPEG", quality=85, optimize=True, progressive=True, exif=b"")
+    except OSError:
+        raise SyncError("An Instagram image could not be saved; the portfolio was not changed.") from None
+    return image.size
+
+
+def detect_stacked_photos(image) -> int | None:
+    """Find a strong central scene cut, conservatively leaving uncertain portraits whole."""
+    from PIL import Image, ImageChops
+    width, height = image.size
+    if min(width, height) < 240 or not 0.6 <= width / height <= 0.9:
+        return None
+    # Keep vertical coordinates intact; only the analysis copy is reduced in width.
+    probe = image.convert("RGB").resize((256, height), Image.Resampling.BOX)
+    differences = ImageChops.difference(probe.crop((0, 0, 256, height - 1)), probe.crop((0, 1, 256, height)))
+    scores = differences.resize((1, height - 1), Image.Resampling.BOX).convert("L").tobytes()
+    boundary = max(range(round(height * 0.45), round(height * 0.55) + 1), key=lambda y: scores[y - 1])
+    score = scores[boundary - 1]
+    neighborhood = max(12, round(height * 0.025))
+    nearby = scores[boundary - neighborhood:boundary - 5] + scores[boundary + 4:boundary + neighborhood]
+    baseline = max(1, median(nearby))
+    changed = differences.crop((0, boundary - 1, 256, boundary)).convert("L").tobytes()
+    coverage = sum(value >= 12 for value in changed) / len(changed)
+    if score < 24 or score < 5 * baseline or coverage < 0.25:
+        return None
+    # JPEG resampling can spread an exactly centered cut over adjacent rows.
+    if abs(boundary - height / 2) <= max(2, round(height * 0.003)):
+        boundary = round(height / 2)
+    if min(width / boundary, width / (height - boundary)) < 1.2:
+        return None
+    return boundary
+
+
+def prepare_split_source(data: bytes, output: Path, settings: dict | bool | None = None) -> dict | None:
+    """Cache full downloaded pixels before preview resizing or JPEG recompression."""
+    if settings is False:
+        return None
+    image = decoded_image(data)
+    boundary = round(image.height * settings["at"]) if settings else detect_stacked_photos(image)
+    if boundary is None:
+        return None
+    if not 0 < boundary < image.height:
+        raise SyncError("The split position must leave two nonempty photographs.")
+    try:
+        image.save(output, "PNG", optimize=True, exif=b"")
+    except OSError:
+        raise SyncError("A full-resolution split source could not be saved; the portfolio was not changed.") from None
+    return {"width": image.width, "height": image.height, "at": boundary / image.height}
+
+
 def apply_image_splits(root: Path, manifest: dict, splits: dict,
                        staging: Path, staged_files: dict[Path, Path]) -> None:
-    """Extract configured photo pairs without changing any decoded source pixels."""
+    """Detect or restore stacked photos and export each half without resizing pixels."""
     for photo in manifest["photos"]:
         settings = splits.get(photo["id"])
-        if settings is None:
+        if settings is False:
             photo.pop("parts", None)
+            photo.pop("split_at", None)
             continue
         try:
             from PIL import Image, UnidentifiedImageError
         except ImportError:
             raise SyncError("Install Pillow before splitting photographs.") from None
-        source_path = root / photo["src"]
+        source_info = photo.get("split_source", photo)
+        source_path = root / source_info["src"]
         try:
             with Image.open(staged_files.get(source_path, source_path)) as source:
-                if source.size != (photo["width"], photo["height"]):
+                at = settings["at"] if settings else photo.get("split_at")
+                if at is None and photo.get("parts"):
+                    at = photo["parts"][0]["height"] / source_info["height"]
+                boundary = round(source.height * at) if at is not None else detect_stacked_photos(source)
+                if boundary is None:
+                    continue
+                if source.size != (source_info["width"], source_info["height"]):
                     raise SyncError("A split photograph's source dimensions do not match its manifest.")
-                boundary = round(source.height * settings["at"])
                 if not 0 < boundary < source.height:
                     raise SyncError("The split position must leave two nonempty photographs.")
                 parts = []
@@ -483,18 +651,32 @@ def apply_image_splits(root: Path, manifest: dict, splits: dict,
                     relative = f'{ASSET_DIRECTORY}/{photo["id"]}-{name}.png'
                     staged = staging / Path(relative).name
                     cropped = source.crop((0, top, source.width, bottom))
-                    cropped.save(staged, "PNG", optimize=True)
-                    staged_files[root / relative] = staged
+                    # Preserve existing PNG bytes when their pixels already match.
+                    unchanged = False
+                    try:
+                        with Image.open(root / relative) as existing:
+                            unchanged = existing.size == cropped.size and existing.mode == cropped.mode and existing.tobytes() == cropped.tobytes()
+                    except (OSError, ValueError):
+                        pass
+                    if not unchanged:
+                        cropped.info.clear()
+                        cropped.save(staged, "PNG", optimize=True, exif=b"")
+                        staged_files[root / relative] = staged
                     parts.append({"part": name, "src": relative, "width": source.width,
                                   "height": bottom - top,
-                                  "alt": settings.get(f"alt_{name}") or f'{photo["alt"]} ({name} photograph)'})
+                                  "alt": (settings or {}).get(f"alt_{name}") or f'{photo["alt"]} ({name} photograph)'})
                 photo["parts"] = parts
-        except (UnidentifiedImageError, OSError, ValueError):
+                photo["split_at"] = boundary / source.height
+        except (UnidentifiedImageError, OSError, ValueError) as error:
+            if (isinstance(error, UnidentifiedImageError) and settings is None
+                    and not photo.get("parts") and not photo.get("split_source")):
+                continue
             raise SyncError(f'Could not split Instagram media {photo["id"]}; the portfolio was not changed.') from None
 
 
 def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
-               staging: Path, downloader=download_image, optimizer=optimize_image) -> tuple[dict, dict[Path, Path]]:
+               staging: Path, downloader=download_image, optimizer=optimize_image,
+               source_preparer=prepare_split_source) -> tuple[dict, dict[Path, Path]]:
     user_id = api.verify_account(config["username"])
     posts = api.media(user_id)
     photos = {photo["id"]: dict(photo) for photo in manifest["photos"]}
@@ -550,22 +732,47 @@ def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
             old = photos.get(media_id)
             src = f"{ASSET_DIRECTORY}/{media_id}.jpg"
             destination = root / src
-            if old and destination.is_file():
+            reuse_preview = old and destination.is_file()
+            settings = config["image_splits"].get(media_id)
+            retained = {key: old[key] for key in ("parts", "split_source", "split_at") if old and key in old}
+            native = retained.get("split_source")
+            needs_native = (old and settings is not False and (settings or retained.get("parts"))
+                            and (not native or not (root / native["src"]).is_file()))
+            if reuse_preview:
                 width, height = old["width"], old["height"]
-            else:
+            if not reuse_preview or needs_native:
                 staged = staging / f"{media_id}.jpg"
                 try:
                     downloaded = downloader(item.get("media_url"))
                 except SyncError as error:
                     raise SyncError(f"Instagram media {media_id}: {error}") from None
-                width, height = optimizer(downloaded, staged)
-                staged_files[destination] = staged
+                source_output = staging / f"{media_id}-source.png"
+                source_settings = settings
+                if source_settings is None and retained.get("split_at"):
+                    source_settings = {"at": retained["split_at"]}
+                original = source_preparer(downloaded, source_output, source_settings)
+                if original:
+                    relative = f"{ASSET_DIRECTORY}/{media_id}-source.png"
+                    retained["split_source"] = {"src": relative, "width": original["width"], "height": original["height"]}
+                    retained["split_at"] = original["at"]
+                    staged_files[root / relative] = source_output
+                if not reuse_preview:
+                    width, height = optimizer(downloaded, staged)
+                    staged_files[destination] = staged
             photos[media_id] = {
                 "id": media_id, "post_id": post_id, "category": category, "src": src,
                 "width": width, "height": height,
                 "alt": photo_alt(item.get("alt_text"), caption, category, config["username"]),
                 "permalink": permalink, "timestamp": post.get("timestamp"),
             }
+            if category in ("basketball", "hockey"):
+                game = (config["game_overrides"].get(post_id) or game_from_caption(caption)
+                        or (old or {}).get("game"))
+                if game:
+                    photos[media_id]["game"] = game
+            for key in ("split_source", "split_at", "parts"):
+                if key in retained:
+                    photos[media_id][key] = retained[key]
             timestamp_key(photos[media_id]["timestamp"])
             pending.pop(media_id, None)
     result = {"version": 1, "photos": sorted_photos(list(photos.values())),
@@ -612,7 +819,7 @@ def commit_sync(staged_files: dict[Path, Path], html_path: Path, html: str,
 
 
 def run(root: Path, render_only: bool = False, token: str | None = None, api=None,
-        downloader=download_image, optimizer=optimize_image) -> dict:
+        downloader=download_image, optimizer=optimize_image, source_preparer=prepare_split_source) -> dict:
     html_path = root / "photography.html"
     try:
         html = html_path.read_bytes().decode("utf-8")
@@ -631,7 +838,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
             staged_files = {}
             apply_image_splits(root, manifest, config["image_splits"], Path(staging), staged_files)
             changed = manifest["photos"] != original_photos
-            commit_sync(staged_files, html_path, render_html(html, manifest["photos"]),
+            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"]),
                         manifest_path if changed else None, manifest if changed else None)
         return manifest
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
@@ -639,9 +846,9 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     api = api or InstagramAPI(access_token, config["api_version"], login_method=config["login_method"],
                              account_id=config["instagram_account_id"])
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
-        updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer)
+        updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer, source_preparer)
         apply_image_splits(root, updated, config["image_splits"], Path(staging), staged)
-        output = render_html(html, updated["photos"])
+        output = render_html(html, updated["photos"], config["game_overrides"])
         commit_sync(staged, html_path, output, manifest_path, updated)
     return updated
 

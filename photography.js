@@ -5,8 +5,8 @@
     const gap = 14;
     const galleries = [];
 
-    // Keep each category in one sequence, including its imported photographs.
-    page.querySelectorAll(".case-main > .case-section, .photo-subsection").forEach(section => {
+    // Balance rows within each game without merging photographs across headings.
+    page.querySelectorAll(".case-main > .case-section, .photo-subsection, .photo-game").forEach(section => {
         const sources = [...section.children].filter(child => child.matches(".case-gallery"));
         const figures = sources.flatMap(source => [...source.querySelectorAll("figure")]);
         if (!figures.length) return;

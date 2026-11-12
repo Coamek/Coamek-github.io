@@ -3,6 +3,11 @@
   "api_version": "v27.0",
   "login_method": "unified",
   "instagram_account_id": "17841477718206518",
+  "game_overrides": {
+    "18576246757072663": { "title": "Wisconsin vs. Denver", "date": "2026-11-02" },
+    "18110114573184807": { "title": "Wisconsin vs. Oklahoma State", "date": "2026-10-27" },
+    "18130646782823339": { "title": "Wisconsin vs. Minnesota State", "date": "2026-10-16" }
+  },
   "image_splits": {
     "18129220813852542": {
       "at": 0.5,

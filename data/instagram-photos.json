@@ -65,7 +65,24 @@
       "height": 1800,
       "alt": "badgers men’s basketball vs. denver - 11/2/26",
       "permalink": "https://www.instagram.com/p/DfnoyjDESkS/",
-      "timestamp": "2026-11-11T23:14:43+0000"
+      "timestamp": "2026-11-11T23:14:43+0000",
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/18135895597792877-top.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "badgers men’s basketball vs. denver - 11/2/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/18135895597792877-bottom.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "badgers men’s basketball vs. denver - 11/2/26 (bottom photograph)"
+        }
+      ],
+      "split_at": 0.5
     },
     {
       "id": "18135055943490142",
@@ -186,7 +203,24 @@
       "height": 1800,
       "alt": "badgers men’s basketball vs. denver - 11/2/26",
       "permalink": "https://www.instagram.com/p/DfnoyjDESkS/",
-      "timestamp": "2026-11-11T23:14:43+0000"
+      "timestamp": "2026-11-11T23:14:43+0000",
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/17914181052482611-top.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "badgers men’s basketball vs. denver - 11/2/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/17914181052482611-bottom.png",
+          "width": 1350,
+          "height": 900,
+          "alt": "badgers men’s basketball vs. denver - 11/2/26 (bottom photograph)"
+        }
+      ],
+      "split_at": 0.5
     },
     {
       "id": "18445723108179237",
@@ -279,7 +313,8 @@
           "height": 900,
           "alt": "Wisconsin basketball player lying on the court near the sideline"
         }
-      ]
+      ],
+      "split_at": 0.5
     },
     {
       "id": "18121458844751452",
@@ -383,7 +418,8 @@
           "height": 900,
           "alt": "Black-and-white photograph of Wisconsin and Oklahoma State players watching a shot near the basket"
         }
-      ]
+      ],
+      "split_at": 0.5
     },
     {
       "id": "17915910627538598",

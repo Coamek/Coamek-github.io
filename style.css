@@ -2490,6 +2490,36 @@ body.school-personal-page {
     }
 }
 
+.photography-page .instagram-game-groups:empty {
+    display: none;
+}
+
+.photography-page .photo-game + .photo-game,
+.photography-page .instagram-game-groups:has(.photo-game) + .photo-game {
+    margin-top: 42px;
+}
+
+.photography-page .photo-game-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 24px;
+    margin-bottom: 18px;
+}
+
+.photography-page .photo-game-heading h3 {
+    margin: 0;
+    font: 600 clamp(21px, 3vw, 26px)/1.2 var(--display);
+}
+
+.photography-page .photo-game-heading time,
+.photography-page .photo-game-heading .photo-game-dates {
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
 /* Photography rows share the available width without empty grid cells. */
 .photography-page .photo-flow {
     --gallery-columns: 4;

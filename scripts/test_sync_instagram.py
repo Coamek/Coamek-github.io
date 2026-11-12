@@ -73,6 +73,17 @@ class FakeAPI:
 
 
 class ClassificationTests(unittest.TestCase):
+    def test_game_dates_come_from_captions_and_accept_both_date_styles(self):
+        for caption, expected in [
+            ("badgers men’s basketball vs. denver - 11/2/26", {"title": "Wisconsin vs. Denver", "date": "2026-11-02"}),
+            ("basketball vs. oklahoma state - 10-27-26", {"title": "Wisconsin vs. Oklahoma State", "date": "2026-10-27"}),
+            ("women’s hockey at Minnesota State – 1/16/2027 #whky", {"title": "Wisconsin at Minnesota State", "date": "2027-01-16"}),
+            ("basketball vs. Denver - 2/30/26", None),
+            ("Basketball game", None),
+        ]:
+            with self.subTest(caption=caption):
+                self.assertEqual(sync.game_from_caption(caption), expected)
+
     def test_existing_categories_and_media_day_precedence(self):
         cases = {"Basketball at the Kohl Center #mbb": "basketball", "A hockey game #whky": "hockey",
                  "Basketball and hockey Media Day": "media-day", "#mediaday portraits": "media-day",
@@ -247,6 +258,15 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["login_method"], "instagram")
         self.assertIsNone(config["instagram_account_id"])
 
+    def test_game_overrides_require_real_iso_dates_and_titles(self):
+        valid = {"101": {"title": "Wisconsin vs. Denver", "date": "2026-11-02"}}
+        self.assertEqual(self.config(game_overrides=valid)["game_overrides"], valid)
+        for invalid in ([], {"101": {"title": "", "date": "2026-11-02"}},
+                        {"101": {"title": "Denver", "date": "2026-02-30"}},
+                        {"101": {"title": "Denver", "date": "11/2/26"}}):
+            with self.subTest(invalid=invalid), self.assertRaises(sync.SyncError):
+                self.config(game_overrides=invalid)
+
     def test_unified_login_keeps_configured_numeric_account(self):
         for account_id in ("17841477718206518", 17841477718206518):
             config = self.config(login_method="unified", instagram_account_id=account_id)
@@ -372,7 +392,8 @@ class ImportTests(unittest.TestCase):
 
     def run_sync(self, api, **kwargs):
         return sync.run(self.root, token="TOKEN", api=api, downloader=self.downloader,
-                        optimizer=kwargs.pop("optimizer", self.optimizer), **kwargs)
+                        optimizer=kwargs.pop("optimizer", self.optimizer),
+                        source_preparer=kwargs.pop("source_preparer", lambda *_: None), **kwargs)
 
     def file_state(self):
         return {str(path.relative_to(self.root)): path.read_bytes() for path in self.root.rglob("*") if path.is_file()}
@@ -461,6 +482,73 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(result["photos"][0]["category"], "hockey")
         self.assertEqual(result["photos"][0]["alt"], "Updated hockey alt")
         self.assertEqual(self.downloads, [])
+
+    def test_game_metadata_survives_individual_alt_text_and_offline_renders(self):
+        self.set_config(game_overrides={"101": {"title": "Wisconsin vs. Denver", "date": "2026-11-02"}})
+        result = self.run_sync(FakeAPI([image(caption="A great night #portfolio_basketball", alt_text="Player dunking")]))
+        self.assertEqual(result["photos"][0]["game"], {"title": "Wisconsin vs. Denver", "date": "2026-11-02"})
+        self.set_config()
+        sync.run(self.root, render_only=True)
+        rendered = (self.root / "photography.html").read_text()
+        self.assertIn('Wisconsin vs. Denver</h3>', rendered)
+        self.assertIn('<time datetime="2026-11-02">November 2, 2026</time>', rendered)
+        self.assertIn('alt="Player dunking"', rendered)
+        self.assertNotIn('November 9, 2026', rendered)
+
+    def test_new_games_automatically_get_caption_headings(self):
+        result = self.run_sync(FakeAPI([image(caption="basketball vs. denver - 11/2/26", alt_text="Player dunking")]))
+        self.assertEqual(result["photos"][0]["game"]["date"], "2026-11-02")
+        rendered = (self.root / "photography.html").read_text()
+        self.assertIn('Wisconsin vs. Denver</h3>', rendered)
+
+    def test_games_merge_related_posts_and_sort_by_event_date(self):
+        photos = [photo("101", timestamp="2026-11-11T12:00:00Z", game={"title": "Wisconsin vs. Boston", "date": "2026-10-01"}),
+                  photo("102", game={"title": "Wisconsin vs. Denver", "date": "2026-11-02"}),
+                  photo("103", game={"title": "Wisconsin vs. Denver", "date": "2026-11-02"})]
+        rendered = sync.render_html(self.html, photos)
+        self.assertEqual(rendered.count('class="photo-game"'), 2)
+        self.assertEqual(rendered.count('Wisconsin vs. Denver</h3>'), 1)
+        self.assertLess(rendered.index('Wisconsin vs. Denver</h3>'), rendered.index('Wisconsin vs. Boston</h3>'))
+        self.assertEqual(rendered.count('data-instagram-id='), 3)
+        for game in ({"title": '<script> & "game"', "date": "2026-11-02"},):
+            escaped = sync.render_html(self.html, photos[:1], {"101": game})
+            self.assertIn('&lt;script&gt; &amp; &quot;game&quot;', escaped)
+
+    def test_hockey_weekend_groups_both_games_and_keeps_all_photos(self):
+        photos = [photo("101", category="hockey", game={"title": "Wisconsin vs. Boston University", "date": "2026-10-01"}),
+                  photo("102", category="hockey", game={"title": "Wisconsin vs. Boston University", "date": "2026-10-02"}),
+                  photo("103", category="hockey", game={"title": "Wisconsin vs. Boston University", "date": "2026-10-02"})]
+        rendered = sync.render_html(self.html, photos)
+        self.assertEqual(rendered.count('class="photo-game"'), 1)
+        self.assertEqual(rendered.count('data-instagram-id='), 3)
+        self.assertIn('<time datetime="2026-10-01">October 1</time>\u2013<time datetime="2026-10-02">2, 2026</time>', rendered)
+
+    def test_hockey_series_keep_different_weekends_opponents_and_weekdays_separate(self):
+        for first, second in [
+            (("Boston", "2026-10-02"), ("Boston", "2026-10-09")),
+            (("Boston", "2026-10-02"), ("Minnesota State", "2026-10-03")),
+            (("Boston", "2026-10-05"), ("Boston", "2026-10-06")),
+        ]:
+            with self.subTest(first=first, second=second):
+                photos = [photo(str(index), category="hockey", game={"title": f"Wisconsin vs. {title}", "date": event_date})
+                          for index, (title, event_date) in enumerate((first, second), 101)]
+                self.assertEqual(sync.render_html(self.html, photos).count('class="photo-game"'), 2)
+        photos = [photo("101", game={"title": "Wisconsin vs. Denver", "date": "2026-10-02"}),
+                  photo("102", game={"title": "Wisconsin vs. Denver", "date": "2026-10-03"})]
+        self.assertEqual(sync.render_html(self.html, photos).count('class="photo-game"'), 2)
+
+    def test_hockey_weekend_dates_handle_month_year_boundaries_and_nonconsecutive_days(self):
+        for dates, expected in [
+            (("2026-10-31", "2026-11-01"), '<time datetime="2026-10-31">October 31</time>\u2013<time datetime="2026-11-01">November 1, 2026</time>'),
+            (("2026-12-31", "2027-01-01"), '<time datetime="2026-12-31">December 31, 2026</time>\u2013<time datetime="2027-01-01">January 1, 2027</time>'),
+            (("2026-10-16", "2026-10-18"), '<time datetime="2026-10-16">October 16</time> &amp; <time datetime="2026-10-18">18, 2026</time>'),
+        ]:
+            with self.subTest(dates=dates):
+                photos = [photo(str(index), category="hockey", game={"title": "Wisconsin vs. Boston", "date": event_date})
+                          for index, event_date in enumerate(dates, 101)]
+                rendered = sync.render_html(self.html, photos)
+                self.assertEqual(rendered.count('class="photo-game"'), 1)
+                self.assertIn(expected, rendered)
 
     def test_api_or_download_failure_preserves_all_files(self):
         original = self.file_state()
@@ -634,7 +722,7 @@ class SplitImageTests(unittest.TestCase):
         api = FakeAPI([image()])
         def unexpected_download(_):
             raise AssertionError("A saved source image should not be downloaded again")
-        sync.run(self.root, token="TOKEN", api=api, downloader=unexpected_download)
+        sync.run(self.root, token="TOKEN", api=api, downloader=lambda _: self.source.read_bytes())
         stable = self.state()
         (self.root / f"{sync.ASSET_DIRECTORY}/101-bottom.png").unlink()
         result = sync.run(self.root, token="TOKEN", api=api, downloader=unexpected_download)
@@ -663,6 +751,117 @@ class SplitImageTests(unittest.TestCase):
         (self.root / "data/instagram-photos.json").write_text(json.dumps(result))
         with self.assertRaisesRegex(sync.SyncError, "invalid split image part"):
             sync.load_manifest(self.root / "data/instagram-photos.json")
+
+    def test_automatic_import_splits_before_resizing_and_preserves_every_source_pixel(self):
+        from PIL import ImageDraw
+        original = self.Image.new("RGB", (2400, 3200), (12, 32, 64))
+        original.paste((230, 200, 180), (0, 1600, 2400, 3200))
+        draw = ImageDraw.Draw(original)
+        draw.line((17, 20, 2200, 1500), fill=(59, 91, 157), width=3)
+        draw.line((17, 1620, 2200, 3100), fill=(137, 91, 59), width=3)
+        original.putpixel((15, 24), (11, 23, 57))
+        exif = self.Image.Exif()
+        exif[270] = "Private camera metadata"
+        data = BytesIO()
+        original.save(data, "PNG", exif=exif)
+        self.config["image_splits"] = {}
+        self.save_config()
+        (self.root / "data/instagram-photos.json").write_text(json.dumps({"version": 1, "photos": [], "pending": []}))
+        result = sync.run(self.root, token="TOKEN", api=FakeAPI([image()]), downloader=lambda _: data.getvalue())
+        imported = result["photos"][0]
+        self.assertEqual((imported["width"], imported["height"]), (1350, 1800))
+        self.assertEqual(imported["split_at"], 0.5)
+        self.assertEqual((imported["split_source"]["width"], imported["split_source"]["height"]), (2400, 3200))
+        with self.Image.open(self.root / imported["split_source"]["src"]) as source:
+            self.assertEqual(source.tobytes(), original.tobytes())
+            self.assertEqual(dict(source.getexif()), {})
+        for part, top in zip(imported["parts"], (0, 1600)):
+            self.assertEqual((part["width"], part["height"]), (2400, 1600))
+            with self.Image.open(self.root / part["src"]) as extracted:
+                self.assertEqual(extracted.format, "PNG")
+                self.assertEqual(extracted.tobytes(), original.crop((0, top, 2400, top + 1600)).tobytes())
+                self.assertEqual(dict(extracted.getexif()), {})
+        sync.load_manifest(self.root / "data/instagram-photos.json")
+        stable = self.state()
+        def no_download(_):
+            self.fail("A preserved full-resolution source must be reused")
+        sync.run(self.root, token="TOKEN", api=FakeAPI([image()]), downloader=no_download)
+        self.assertEqual(self.state(), stable)
+        from package_pages import package_site
+        (self.root / "index.html").write_text("<html></html>")
+        output = self.root / "public-site"
+        package_site(self.root, output)
+        self.assertFalse((output / imported["split_source"]["src"]).exists())
+        self.assertTrue(all((output / part["src"]).is_file() for part in imported["parts"]))
+
+    def test_saved_preview_is_upgraded_once_to_the_full_download_resolution(self):
+        original_bytes = self.source.read_bytes()
+        source = self.Image.new("RGB", (24, 16), "red")
+        source.paste("blue", (0, 8, 24, 16))
+        data = BytesIO()
+        source.save(data, "PNG")
+        downloads = []
+        def download(_):
+            downloads.append(True)
+            return data.getvalue()
+        result = sync.run(self.root, token="TOKEN", api=FakeAPI([image()]), downloader=download)
+        self.assertEqual(len(downloads), 1)
+        self.assertEqual(self.source.read_bytes(), original_bytes)
+        self.assertEqual([(part["width"], part["height"]) for part in result["photos"][0]["parts"]], [(24, 8), (24, 8)])
+        sync.run(self.root, token="TOKEN", api=FakeAPI([image()]), downloader=download)
+        self.assertEqual(len(downloads), 1)
+        native = self.root / result["photos"][0]["split_source"]["src"]
+        native.unlink()
+        sync.run(self.root, token="TOKEN", api=FakeAPI([image()]), downloader=download)
+        self.assertEqual(len(downloads), 2)
+        self.assertTrue(native.is_file())
+
+    def test_an_image_can_be_explicitly_kept_whole(self):
+        sync.run(self.root, render_only=True)
+        self.config["image_splits"]["101"] = False
+        self.save_config()
+        result = sync.run(self.root, render_only=True)
+        self.assertNotIn("parts", result["photos"][0])
+        self.assertNotIn("split_at", result["photos"][0])
+        self.assertIn('src="assets/photography/web/instagram/101.jpg"', (self.root / "photography.html").read_text())
+
+    def test_manifest_rejects_native_source_paths_and_dimensions_outside_the_contract(self):
+        for invalid in ({"src": "../../private.png", "width": 2400, "height": 3200},
+                        {"src": f"{sync.ASSET_DIRECTORY}/101-source.png", "width": 10000, "height": 10000}):
+            saved = photo(width=12, height=8, split_source=invalid)
+            (self.root / "data/instagram-photos.json").write_text(json.dumps({"version": 1, "photos": [saved], "pending": []}))
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(sync.SyncError, "full-resolution split source"):
+                sync.load_manifest(self.root / "data/instagram-photos.json")
+
+
+class AutomaticSplitDetectionTests(unittest.TestCase):
+    def setUp(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow is not installed")
+        self.Image = Image
+
+    def test_recognizes_the_four_confirmed_pairs_and_leaves_other_denver_photos_whole(self):
+        root = Path(__file__).resolve().parent.parent
+        confirmed = {"18129220813852542", "17917986375496649", "18135895597792877", "17914181052482611"}
+        photos = json.loads((root / "data/instagram-photos.json").read_text(encoding="utf-8"))["photos"]
+        for photo in photos:
+            if "DfnoyjDESkS" not in photo["permalink"] and photo["id"] not in confirmed:
+                continue
+            with self.subTest(media_id=photo["id"]), self.Image.open(root / photo["src"]) as source:
+                self.assertEqual(sync.detect_stacked_photos(source), 900 if photo["id"] in confirmed else None)
+
+    def test_smooth_portraits_landscapes_and_off_center_straight_edges_stay_whole(self):
+        cases = [self.Image.new("RGB", (600, 800), "black"),
+                 self.Image.linear_gradient("L").resize((600, 800)).convert("RGB"),
+                 self.Image.new("RGB", (800, 600), "red")]
+        off_center = self.Image.new("RGB", (600, 800), "black")
+        off_center.paste("white", (0, 472, 600, 800))
+        cases.append(off_center)
+        for index, source in enumerate(cases):
+            with self.subTest(index=index):
+                self.assertIsNone(sync.detect_stacked_photos(source))
 
 
 class ImageTests(unittest.TestCase):
