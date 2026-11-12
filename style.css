@@ -60,6 +60,20 @@ a {
     text-decoration: none;
 }
 
+.site-icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -0.125em;
+    overflow: visible;
+}
+
 a:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 5px;
@@ -706,6 +720,10 @@ a:focus-visible {
     color: var(--paper);
     font-size: 12px;
     font-weight: 600;
+}
+
+.footer-bottom a > .site-icon {
+    margin-left: 0.35em;
 }
 
 .footer-bottom .back-to-top:hover {

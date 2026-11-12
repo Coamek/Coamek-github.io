@@ -415,7 +415,7 @@ def render_game_index(html: str) -> str:
             lines.extend([f'        <li><a href="#{escape(game["target"], quote=True)}">',
                           f'            <span><span class="game-index-matchup">{title}</span>'
                           f'<span class="game-index-date">{escape(game["date"])}</span></span>',
-                          '            <span class="game-index-arrow" aria-hidden="true">&#8600;</span>',
+                          '            <span class="game-index-arrow" aria-hidden="true"><svg class="site-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 7l10 10M7 17h10V7"/></svg></span>',
                           '        </a></li>'])
         lines.extend(['    </ul>', '</div>'])
     newline = "\r\n" if "\r\n" in html else "\n"
