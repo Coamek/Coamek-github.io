@@ -30,6 +30,10 @@
     font-display: swap;
 }
 
+:root {
+    --site-header-height: 76px;
+}
+
 body.marathon-page {
     --marathon-purple: #5a03ff;
     --marathon-lime: #c2ff06;
@@ -63,7 +67,7 @@ body.marathon-page {
 }
 
 .marathon-page .site-header {
-    min-height: 76px;
+    min-height: var(--site-header-height);
     border-bottom: var(--marathon-line);
 }
 
@@ -444,7 +448,7 @@ body.marathon-page {
 
 .marathon-page #identity .case-gallery figure {
     padding: clamp(12px, 1.7vw, 26px);
-    border: 1px solid rgb(255 255 255 / 15%);
+    border: 0;
     background: #1b1b1e;
 }
 

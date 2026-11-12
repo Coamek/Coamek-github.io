@@ -268,13 +268,8 @@ class ConfigTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(sync.SyncError):
                 self.config(game_overrides=invalid)
 
-    def test_featured_photos_are_limited_to_distinct_media_ids(self):
-        selected = {"100": ["9", "700", "40"]}
-        self.assertEqual(self.config(featured_photos=selected)["featured_photos"], selected)
-        for invalid in ([], {"100": "9"}, {"100": ["9", "9"]},
-                        {"100": ["1", "2", "3", "4"]}, {"100": ["not-an-id"]}):
-            with self.subTest(invalid=invalid), self.assertRaises(sync.SyncError):
-                self.config(featured_photos=invalid)
+    def test_legacy_favorite_settings_are_ignored(self):
+        self.assertNotIn("featured_photos", self.config(featured_photos={"100": ["700", "9"]}))
 
     def test_unified_login_keeps_configured_numeric_account(self):
         for account_id in ("17841477718206518", 17841477718206518):
@@ -444,14 +439,14 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(len(self.downloads), 3)
         self.assertEqual(sync.load_manifest(self.root / "data/instagram-photos.json"), result)
 
-    def test_reviewed_openers_affect_display_and_keep_the_stored_carousel_sequence(self):
+    def test_carousel_sequence_controls_display_even_with_legacy_favorite_settings(self):
         self.set_config(featured_photos={"100": ["700", "9"]})
         api = FakeAPI([image("100", media_type="CAROUSEL_ALBUM")],
                       {"100": [image("9"), image("700"), image("40")]})
         result = self.run_sync(api)
         self.assertEqual([p["id"] for p in result["photos"]], ["9", "700", "40"])
         html = (self.root / "photography.html").read_text()
-        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', html), ["700", "9", "40"])
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', html), ["9", "700", "40"])
         sync.run(self.root, render_only=True)
         self.assertEqual((self.root / "photography.html").read_text(), html)
 
@@ -460,18 +455,17 @@ class ImportTests(unittest.TestCase):
                   photo("999", post_id="100", timestamp="2026-10-01T12:00:00Z", carousel_position=1),
                   photo("40", post_id="200", carousel_position=1), photo("700", post_id="200", carousel_position=0)]
         self.assertEqual([p["id"] for p in sync.sorted_photos(photos)], ["700", "40", "9", "999"])
-        self.assertEqual([p["id"] for p in sync.sorted_photos(photos, {"100": ["999"]})], ["700", "40", "999", "9"])
         legacy = [photo("9", post_id="100"), photo("999", post_id="100")]
         self.assertEqual([p["id"] for p in sync.sorted_photos(legacy)], ["9", "999"])
 
-    def test_featured_split_photographs_keep_top_and_bottom_together(self):
+    def test_split_photographs_keep_top_and_bottom_at_the_original_slide_position(self):
         split = photo("9", post_id="100", carousel_position=0, parts=[
             {"part": name, "src": f"{sync.ASSET_DIRECTORY}/9-{name}.png", "width": 1200, "height": 900, "alt": name}
             for name in ("top", "bottom")])
         photos = [split, photo("700", post_id="100", carousel_position=1)]
-        html = sync.render_html(self.html, photos, featured_photos={"100": ["700", "9"]})
+        html = sync.render_html(self.html, photos)
         self.assertEqual(re.findall(r'data-instagram-id="(\d+)"(?: data-instagram-part="([^"]+)")?', html),
-                         [("700", ""), ("9", "top"), ("9", "bottom")])
+                         [("9", "top"), ("9", "bottom"), ("700", "")])
 
     def test_manifest_rejects_invalid_carousel_positions(self):
         for position in (True, -1, "first"):

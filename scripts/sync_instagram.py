@@ -72,7 +72,6 @@ def load_config(path: Path) -> dict:
     overrides = config.get("category_overrides", {})
     splits = config.get("image_splits", {})
     games = config.get("game_overrides", {})
-    featured = config.get("featured_photos", {})
     login_method, account_id = login_settings(config.get("login_method", "instagram"),
                                               config.get("instagram_account_id"))
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9_.]{1,30}", username):
@@ -100,19 +99,9 @@ def load_config(path: Path) -> dict:
     for post_id, game in games.items():
         numeric_id(post_id)
         validate_game(game)
-    if not isinstance(featured, dict):
-        raise SyncError("featured_photos must map post IDs to up to three selected image IDs.")
-    for post_id, media_ids in featured.items():
-        numeric_id(post_id)
-        if not isinstance(media_ids, list) or len(media_ids) > 3:
-            raise SyncError("Each featured_photos entry must list up to three distinct image IDs.")
-        media_ids = [numeric_id(media_id) for media_id in media_ids]
-        if len(set(media_ids)) != len(media_ids):
-            raise SyncError("Each featured_photos entry must list up to three distinct image IDs.")
-        featured[post_id] = media_ids
     return {"username": username, "api_version": version, "category_overrides": overrides,
             "login_method": login_method, "instagram_account_id": account_id, "image_splits": splits,
-            "game_overrides": games, "featured_photos": featured}
+            "game_overrides": games}
 
 
 def validate_game(game: object) -> None:
@@ -298,18 +287,15 @@ def validate_markers(html: str) -> None:
         raise SyncError("Instagram marker blocks must not overlap or nest.")
 
 
-def sorted_photos(photos: list[dict], featured_photos: dict | None = None) -> list[dict]:
+def sorted_photos(photos: list[dict]) -> list[dict]:
     """Keep newest posts first and preserve each carousel's supplied slide order."""
     posts = {}
     for photo in sorted(photos, key=lambda item: timestamp_key(item["timestamp"]), reverse=True):
         posts.setdefault(photo["post_id"], []).append(photo)
     ordered = []
-    for post_id, items in posts.items():
+    for items in posts.values():
         # Stable sorting preserves the saved sequence when legacy positions are unknown.
         items.sort(key=lambda item: item.get("carousel_position", sys.maxsize))
-        selected = (featured_photos or {}).get(post_id, [])
-        priority = {media_id: index for index, media_id in enumerate(selected)}
-        items.sort(key=lambda item: priority.get(item["id"], len(selected)))
         ordered.extend(items)
     return ordered
 
@@ -438,11 +424,10 @@ def render_game_index(html: str) -> str:
     return html[:html.index(start) + len(start)] + content + html[html.index(end):]
 
 
-def render_html(html: str, photos: list[dict], game_overrides: dict | None = None,
-                featured_photos: dict | None = None) -> str:
+def render_html(html: str, photos: list[dict], game_overrides: dict | None = None) -> str:
     validate_markers(html)
     groups: dict[str, list[dict]] = {key: [] for key in MARKER_KEYS}
-    for source in sorted_photos(photos, featured_photos):
+    for source in sorted_photos(photos):
         for part in source.get("parts", [{}]):
             photo = {**source, **part}
             key = photo["category"]
@@ -930,7 +915,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
             staged_files = {}
             apply_image_splits(root, manifest, config["image_splits"], Path(staging), staged_files)
             changed = manifest["photos"] != original_photos
-            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"], config["featured_photos"]),
+            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"]),
                         manifest_path if changed else None, manifest if changed else None)
         return manifest
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
@@ -940,7 +925,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
         updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer, source_preparer)
         apply_image_splits(root, updated, config["image_splits"], Path(staging), staged)
-        output = render_html(html, updated["photos"], config["game_overrides"], config["featured_photos"])
+        output = render_html(html, updated["photos"], config["game_overrides"])
         commit_sync(staged, html_path, output, manifest_path, updated)
     return updated
 
