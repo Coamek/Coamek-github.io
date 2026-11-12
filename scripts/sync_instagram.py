@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from datetime import date, datetime, timezone
 from html import escape
+from html.parser import HTMLParser
 from io import BytesIO
 import json
 import os
@@ -71,6 +72,7 @@ def load_config(path: Path) -> dict:
     overrides = config.get("category_overrides", {})
     splits = config.get("image_splits", {})
     games = config.get("game_overrides", {})
+    featured = config.get("featured_photos", {})
     login_method, account_id = login_settings(config.get("login_method", "instagram"),
                                               config.get("instagram_account_id"))
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9_.]{1,30}", username):
@@ -98,9 +100,19 @@ def load_config(path: Path) -> dict:
     for post_id, game in games.items():
         numeric_id(post_id)
         validate_game(game)
+    if not isinstance(featured, dict):
+        raise SyncError("featured_photos must map post IDs to up to three selected image IDs.")
+    for post_id, media_ids in featured.items():
+        numeric_id(post_id)
+        if not isinstance(media_ids, list) or len(media_ids) > 3:
+            raise SyncError("Each featured_photos entry must list up to three distinct image IDs.")
+        media_ids = [numeric_id(media_id) for media_id in media_ids]
+        if len(set(media_ids)) != len(media_ids):
+            raise SyncError("Each featured_photos entry must list up to three distinct image IDs.")
+        featured[post_id] = media_ids
     return {"username": username, "api_version": version, "category_overrides": overrides,
             "login_method": login_method, "instagram_account_id": account_id, "image_splits": splits,
-            "game_overrides": games}
+            "game_overrides": games, "featured_photos": featured}
 
 
 def validate_game(game: object) -> None:
@@ -178,6 +190,8 @@ def load_manifest(path: Path) -> dict:
             raise SyncError("The Instagram manifest contains an invalid photo.")
         media_id = numeric_id(photo.get("id"))
         numeric_id(photo.get("post_id"))
+        if "carousel_position" in photo and (type(photo["carousel_position"]) is not int or photo["carousel_position"] < 0):
+            raise SyncError("The Instagram manifest contains an invalid carousel position.")
         if media_id in seen:
             raise SyncError("The Instagram manifest contains duplicate photo IDs.")
         seen.add(media_id)
@@ -274,13 +288,30 @@ def validate_markers(html: str) -> None:
         if first >= last:
             raise SyncError(f"The Instagram marker pair for {key} is out of order.")
         spans.append((first, last + len(end)))
+    start, end = "<!-- photography:game-index:start -->", "<!-- photography:game-index:end -->"
+    if start in html or end in html:
+        if html.count(start) != 1 or html.count(end) != 1 or html.index(start) >= html.index(end):
+            raise SyncError("photography.html needs exactly one ordered game index marker pair.")
+        spans.append((html.index(start), html.index(end) + len(end)))
     spans.sort()
     if any(right[0] < left[1] for left, right in zip(spans, spans[1:])):
         raise SyncError("Instagram marker blocks must not overlap or nest.")
 
 
-def sorted_photos(photos: list[dict]) -> list[dict]:
-    return sorted(photos, key=lambda photo: (timestamp_key(photo["timestamp"]), int(photo["id"])), reverse=True)
+def sorted_photos(photos: list[dict], featured_photos: dict | None = None) -> list[dict]:
+    """Keep newest posts first and preserve each carousel's supplied slide order."""
+    posts = {}
+    for photo in sorted(photos, key=lambda item: timestamp_key(item["timestamp"]), reverse=True):
+        posts.setdefault(photo["post_id"], []).append(photo)
+    ordered = []
+    for post_id, items in posts.items():
+        # Stable sorting preserves the saved sequence when legacy positions are unknown.
+        items.sort(key=lambda item: item.get("carousel_position", sys.maxsize))
+        selected = (featured_photos or {}).get(post_id, [])
+        priority = {media_id: index for index, media_id in enumerate(selected)}
+        items.sort(key=lambda item: priority.get(item["id"], len(selected)))
+        ordered.extend(items)
+    return ordered
 
 
 def render_game_dates(dates: set[str]) -> str:
@@ -326,7 +357,7 @@ def render_game_groups(photos: list[dict], category: str, overrides: dict) -> li
         title = game["title"] if game else f'{category.capitalize()} photographs'
         lines.extend([f'<section class="photo-game" aria-labelledby="{heading_id}">',
                       '    <div class="photo-game-heading">',
-                      f'        <h3 id="{heading_id}">{escape(title)}</h3>'])
+                      f'        <h3 id="{heading_id}" tabindex="-1">{escape(title)}</h3>'])
         if game:
             lines.append('        ' + render_game_dates(group["dates"]))
         lines.extend(['    </div>', f'    <div class="case-gallery photo-gallery {category}-gallery">'])
@@ -348,10 +379,70 @@ def render_photo(photo: dict) -> str:
     )
 
 
-def render_html(html: str, photos: list[dict], game_overrides: dict | None = None) -> str:
+class GameIndexParser(HTMLParser):
+    """Read the rendered game headings, including hand-curated galleries and date ranges."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.games = []
+        self.current = None
+        self.in_heading = False
+        self.in_title = False
+
+    def handle_starttag(self, tag, attributes):
+        attrs = dict(attributes)
+        classes = attrs.get("class", "").split()
+        if tag == "section" and "photo-game" in classes:
+            self.current = {"target": attrs.get("aria-labelledby", ""), "title": [], "date": []}
+        elif self.current and tag == "div" and "photo-game-heading" in classes:
+            self.in_heading = True
+        elif self.in_heading and tag == "h3":
+            self.in_title = True
+
+    def handle_data(self, data):
+        if self.in_heading and self.current:
+            self.current["title" if self.in_title else "date"].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "h3":
+            self.in_title = False
+        elif tag == "div" and self.in_heading:
+            self.games.append({key: " ".join("".join(value).split()) if isinstance(value, list) else value
+                               for key, value in self.current.items()})
+            self.current = None
+            self.in_heading = False
+
+
+def render_game_index(html: str) -> str:
+    start, end = "<!-- photography:game-index:start -->", "<!-- photography:game-index:end -->"
+    if start not in html:
+        return html
+    parser = GameIndexParser()
+    parser.feed(html)
+    lines = []
+    for category, label in (("basketball", "Men's basketball"), ("hockey", "Women's hockey")):
+        games = [game for game in parser.games if game["target"].startswith(f"{category}-game-")]
+        if not games:
+            continue
+        lines.extend(['<div class="game-index-group">', f'    <h3>{label}</h3>', '    <ul>'])
+        for game in games:
+            title = escape(game["title"].removeprefix("Wisconsin "))
+            lines.extend([f'        <li><a href="#{escape(game["target"], quote=True)}">',
+                          f'            <span><span class="game-index-matchup">{title}</span>'
+                          f'<span class="game-index-date">{escape(game["date"])}</span></span>',
+                          '            <span class="game-index-arrow" aria-hidden="true">&#8600;</span>',
+                          '        </a></li>'])
+        lines.extend(['    </ul>', '</div>'])
+    newline = "\r\n" if "\r\n" in html else "\n"
+    indent = html[html.rfind("\n", 0, html.index(start)) + 1:html.index(start)]
+    content = newline + newline.join(indent + line for line in lines) + newline + indent
+    return html[:html.index(start) + len(start)] + content + html[html.index(end):]
+
+
+def render_html(html: str, photos: list[dict], game_overrides: dict | None = None,
+                featured_photos: dict | None = None) -> str:
     validate_markers(html)
     groups: dict[str, list[dict]] = {key: [] for key in MARKER_KEYS}
-    for source in sorted_photos(photos):
+    for source in sorted_photos(photos, featured_photos):
         for part in source.get("parts", [{}]):
             photo = {**source, **part}
             key = photo["category"]
@@ -372,7 +463,7 @@ def render_html(html: str, photos: list[dict], game_overrides: dict | None = Non
         figures = [indent + figure for figure in figures]
         content = newline + (newline.join(figures) + newline if figures else "") + indent
         html = html[:start_pos] + content + html[end_pos:]
-    return html
+    return render_game_index(html)
 
 
 def read_bounded(response, maximum: int) -> bytes:
@@ -706,7 +797,7 @@ def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
         caption = post.get("caption") or post.get("alt_text") or ""
         if not isinstance(caption, str):
             raise SyncError("Instagram returned a non-text photo caption.")
-        for item in items:
+        for position, item in enumerate(items):
             if item.get("media_type") != "IMAGE":
                 continue
             media_id = numeric_id(item.get("id"))
@@ -764,6 +855,7 @@ def stage_sync(root: Path, manifest: dict, config: dict, api: InstagramAPI,
                 "width": width, "height": height,
                 "alt": photo_alt(item.get("alt_text"), caption, category, config["username"]),
                 "permalink": permalink, "timestamp": post.get("timestamp"),
+                "carousel_position": position,
             }
             if category in ("basketball", "hockey"):
                 game = (config["game_overrides"].get(post_id) or game_from_caption(caption)
@@ -838,7 +930,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
             staged_files = {}
             apply_image_splits(root, manifest, config["image_splits"], Path(staging), staged_files)
             changed = manifest["photos"] != original_photos
-            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"]),
+            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"], config["featured_photos"]),
                         manifest_path if changed else None, manifest if changed else None)
         return manifest
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
@@ -848,7 +940,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
         updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer, source_preparer)
         apply_image_splits(root, updated, config["image_splits"], Path(staging), staged)
-        output = render_html(html, updated["photos"], config["game_overrides"])
+        output = render_html(html, updated["photos"], config["game_overrides"], config["featured_photos"])
         commit_sync(staged, html_path, output, manifest_path, updated)
     return updated
 

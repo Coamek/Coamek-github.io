@@ -5,6 +5,7 @@ from io import BytesIO, StringIO
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -267,6 +268,14 @@ class ConfigTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(sync.SyncError):
                 self.config(game_overrides=invalid)
 
+    def test_featured_photos_are_limited_to_distinct_media_ids(self):
+        selected = {"100": ["9", "700", "40"]}
+        self.assertEqual(self.config(featured_photos=selected)["featured_photos"], selected)
+        for invalid in ([], {"100": "9"}, {"100": ["9", "9"]},
+                        {"100": ["1", "2", "3", "4"]}, {"100": ["not-an-id"]}):
+            with self.subTest(invalid=invalid), self.assertRaises(sync.SyncError):
+                self.config(featured_photos=invalid)
+
     def test_unified_login_keeps_configured_numeric_account(self):
         for account_id in ("17841477718206518", 17841477718206518):
             config = self.config(login_method="unified", instagram_account_id=account_id)
@@ -408,7 +417,9 @@ class ImportTests(unittest.TestCase):
         self.assertTrue(all(item["post_id"] == "100" for item in result["photos"]))
         self.assertEqual(len(self.downloads), 2)
         self.assertEqual(api.children_requested, ["100"])
-        self.assertEqual(result["photos"][1]["alt"], "Player with the ball")
+        self.assertEqual([item["id"] for item in result["photos"]], ["201", "202"])
+        self.assertEqual([item["carousel_position"] for item in result["photos"]], [0, 3])
+        self.assertEqual(result["photos"][0]["alt"], "Player with the ball")
         state = self.file_state()
         manifest_mtime = (self.root / "data/instagram-photos.json").stat().st_mtime_ns
         self.run_sync(api)
@@ -420,6 +431,53 @@ class ImportTests(unittest.TestCase):
         self.assertNotIn("signed.jpg", saved)
         self.assertNotIn("TOKEN", saved)
         self.assertIn('<figure id="curated"><img src="existing.jpg"></figure>', (self.root / "photography.html").read_text())
+
+    def test_carousel_positions_follow_the_api_sequence_and_refresh_without_redownloads(self):
+        api = FakeAPI([image("100", media_type="CAROUSEL_ALBUM")],
+                      {"100": [image("9"), image("700"), image("40")]})
+        result = self.run_sync(api)
+        self.assertEqual([p["id"] for p in result["photos"]], ["9", "700", "40"])
+        self.assertEqual([p["carousel_position"] for p in result["photos"]], [0, 1, 2])
+        api.child_items["100"] = [image("40"), image("9"), image("700")]
+        result = self.run_sync(api)
+        self.assertEqual([p["id"] for p in result["photos"]], ["40", "9", "700"])
+        self.assertEqual(len(self.downloads), 3)
+        self.assertEqual(sync.load_manifest(self.root / "data/instagram-photos.json"), result)
+
+    def test_reviewed_openers_affect_display_and_keep_the_stored_carousel_sequence(self):
+        self.set_config(featured_photos={"100": ["700", "9"]})
+        api = FakeAPI([image("100", media_type="CAROUSEL_ALBUM")],
+                      {"100": [image("9"), image("700"), image("40")]})
+        result = self.run_sync(api)
+        self.assertEqual([p["id"] for p in result["photos"]], ["9", "700", "40"])
+        html = (self.root / "photography.html").read_text()
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', html), ["700", "9", "40"])
+        sync.run(self.root, render_only=True)
+        self.assertEqual((self.root / "photography.html").read_text(), html)
+
+    def test_ordering_keeps_post_blocks_newest_first_and_legacy_sequences_stable(self):
+        photos = [photo("9", post_id="100", timestamp="2026-10-01T12:00:00Z", carousel_position=0),
+                  photo("999", post_id="100", timestamp="2026-10-01T12:00:00Z", carousel_position=1),
+                  photo("40", post_id="200", carousel_position=1), photo("700", post_id="200", carousel_position=0)]
+        self.assertEqual([p["id"] for p in sync.sorted_photos(photos)], ["700", "40", "9", "999"])
+        self.assertEqual([p["id"] for p in sync.sorted_photos(photos, {"100": ["999"]})], ["700", "40", "999", "9"])
+        legacy = [photo("9", post_id="100"), photo("999", post_id="100")]
+        self.assertEqual([p["id"] for p in sync.sorted_photos(legacy)], ["9", "999"])
+
+    def test_featured_split_photographs_keep_top_and_bottom_together(self):
+        split = photo("9", post_id="100", carousel_position=0, parts=[
+            {"part": name, "src": f"{sync.ASSET_DIRECTORY}/9-{name}.png", "width": 1200, "height": 900, "alt": name}
+            for name in ("top", "bottom")])
+        photos = [split, photo("700", post_id="100", carousel_position=1)]
+        html = sync.render_html(self.html, photos, featured_photos={"100": ["700", "9"]})
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"(?: data-instagram-part="([^"]+)")?', html),
+                         [("700", ""), ("9", "top"), ("9", "bottom")])
+
+    def test_manifest_rejects_invalid_carousel_positions(self):
+        for position in (True, -1, "first"):
+            self.set_manifest([photo(carousel_position=position)])
+            with self.subTest(position=position), self.assertRaisesRegex(sync.SyncError, "carousel position"):
+                sync.load_manifest(self.root / "data/instagram-photos.json")
 
     def test_child_overrides_split_a_carousel_and_parent_skip_wins(self):
         self.set_config({"100": "basketball", "201": "hockey", "202": "skip"})
@@ -522,6 +580,38 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(rendered.count('class="photo-game"'), 1)
         self.assertEqual(rendered.count('data-instagram-id='), 3)
         self.assertIn('<time datetime="2026-10-01">October 1</time>\u2013<time datetime="2026-10-02">2, 2026</time>', rendered)
+
+    def test_game_index_refreshes_links_for_imported_and_curated_games(self):
+        start, end = '<!-- photography:game-index:start -->', '<!-- photography:game-index:end -->'
+        html = self.html.replace('<body>', f'<body><nav>{start}<a href="#obsolete">Old game</a>{end}</nav>')
+        curated = ('<section class="photo-game" aria-labelledby="basketball-game-curated">'
+                   '<div class="photo-game-heading"><h3 id="basketball-game-curated">Wisconsin vs. UW-Parkside</h3>'
+                   '<time datetime="2026-10-10">October 10, 2026</time></div></section>')
+        html = html.replace('</body>', curated + '</body>')
+        photos = [photo('101', category='hockey', game={"title": "Wisconsin vs. Boston University", "date": "2026-10-01"}),
+                  photo('102', category='hockey', game={"title": "Wisconsin vs. Boston University", "date": "2026-10-02"}),
+                  photo('103', game={"title": "Wisconsin vs. Denver", "date": "2026-11-02"})]
+        rendered = sync.render_html(html, photos)
+        index = rendered.split(start)[1].split(end)[0]
+        self.assertNotIn('obsolete', index)
+        self.assertEqual(index.count('<a href='), 3)
+        self.assertIn('October 1\u20132, 2026', index)
+        self.assertIn('vs. UW-Parkside', index)
+        self.assertIn("Men's basketball", index)
+        self.assertIn("Women's hockey", index)
+        self.assertCountEqual(re.findall(r'href="#([^"]+)"', index), re.findall(r'<h3 id="([^"]+-game-[^"]+)"', rendered))
+        self.assertEqual(sync.render_html(rendered, photos), rendered)
+        photos.append(photo('104', game={"title": "Wisconsin vs. Illinois", "date": "2027-01-02"}))
+        updated = sync.render_html(rendered, photos).split(start)[1].split(end)[0]
+        self.assertEqual(updated.count('<a href='), 4)
+        self.assertIn('vs. Illinois', updated)
+
+    def test_broken_game_index_markers_stop_before_network_access(self):
+        (self.root / 'photography.html').write_text(self.html.replace('<body>', '<body><!-- photography:game-index:start -->'))
+        api = FakeAPI()
+        api.verify_account = lambda _: self.fail('Network must not run with broken game index markers')
+        with self.assertRaisesRegex(sync.SyncError, 'game index marker pair'):
+            self.run_sync(api)
 
     def test_hockey_series_keep_different_weekends_opponents_and_weekdays_separate(self):
         for first, second in [

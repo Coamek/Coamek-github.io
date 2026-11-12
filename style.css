@@ -2490,6 +2490,118 @@ body.school-personal-page {
     }
 }
 
+.photography-page .photography-hero-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: clamp(28px, 4vw, 64px);
+    margin-top: 22px;
+}
+
+.photography-page .photography-hero-layout .case-hero-copy {
+    min-width: 0;
+    margin-top: 0;
+}
+
+.photography-page .photography-game-index {
+    padding-left: 28px;
+}
+
+.photography-game-index h2 {
+    margin: 0 0 18px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.game-index-group + .game-index-group {
+    margin-top: 20px;
+}
+
+.game-index-group h3 {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.game-index-group ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.game-index-group a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 9px 0;
+}
+
+.game-index-matchup {
+    display: block;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.game-index-date {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.game-index-arrow {
+    flex-shrink: 0;
+    color: var(--accent);
+    font-size: 20px;
+}
+
+.game-index-group a:hover .game-index-matchup {
+    color: var(--accent);
+}
+
+@media (min-width: 901px) {
+    .photography-page .photography-hero-layout h1 {
+        font-size: clamp(66px, 7.8vw, 112px);
+    }
+}
+
+@media (max-width: 900px) {
+    .photography-page .photography-hero-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 28px;
+    }
+
+    .photography-page .photography-game-index {
+        padding: 24px 0 0;
+    }
+
+    .photography-game-index-groups {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+    }
+
+    .game-index-group + .game-index-group {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 600px) {
+    .photography-game-index-groups {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .photography-page .instagram-game-groups:empty {
     display: none;
 }
@@ -2511,6 +2623,7 @@ body.school-personal-page {
 .photography-page .photo-game-heading h3 {
     margin: 0;
     font: 600 clamp(21px, 3vw, 26px)/1.2 var(--display);
+    scroll-margin-top: 24px;
 }
 
 .photography-page .photo-game-heading time,
@@ -2520,7 +2633,11 @@ body.school-personal-page {
     white-space: nowrap;
 }
 
-/* Photography rows share the available width without empty grid cells. */
+/* Keep landscapes compact while balancing photographs into shared rows. */
+.photography-page .photo-gallery > :is(.instagram-photo-horizontal, .basketball-photo-horizontal, .hockey-photo-horizontal) {
+    grid-column: span 2;
+}
+
 .photography-page .photo-flow {
     --gallery-columns: 4;
     display: block;

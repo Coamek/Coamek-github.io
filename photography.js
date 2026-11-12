@@ -35,16 +35,21 @@
         const lengths = [];
         costs[ratios.length] = 0;
 
-        // Balance all rows together so the final row does not leave a lone portrait.
+        // Balance all rows together so neither orientation is left alone in an oversized row.
         for (let start = ratios.length - 1; start >= 0; start--) {
             let sum = 0;
+            let widestLandscape = 0;
             for (let count = 1; count <= Math.min(columns * 2, ratios.length - start); count++) {
-                sum += ratios[start + count - 1];
-                if (count === 1 && ratios.length > 1 && ratios[start] < 1.15) continue;
-                const height = (width - gap * (count - 1)) / sum;
+                const ratio = ratios[start + count - 1];
+                sum += ratio;
+                if (ratio > 1) widestLandscape = Math.max(widestLandscape, ratio);
+                if (count === 1 && ratios.length > 1) continue;
+                const rowWidth = limitedRowWidth(sum, widestLandscape, count, width, columns);
+                const height = (rowWidth - gap * (count - 1)) / sum;
                 if (height <= 0) continue;
                 const difference = Math.log(height / targetHeight);
-                const cost = difference * difference * count + costs[start + count];
+                const unused = (width - rowWidth) / width;
+                const cost = (difference * difference + 8 * unused * unused) * count + costs[start + count];
                 if (cost < costs[start]) {
                     costs[start] = cost;
                     lengths[start] = count;
@@ -60,6 +65,14 @@
         return rows;
     }
 
+    function limitedRowWidth(total, widestLandscape, count, width, columns) {
+        if (!widestLandscape || columns <= 2) return width;
+        const columnWidth = (width - gap * (columns - 1)) / columns;
+        const landscapeLimit = 2 * columnWidth + gap;
+        // Even a short gallery keeps landscapes within two portrait columns.
+        return Math.min(width, landscapeLimit * total / widestLandscape + gap * (count - 1));
+    }
+
     function layout() {
         galleries.forEach(gallery => {
             const width = gallery.element.clientWidth;
@@ -72,6 +85,8 @@
                 const row = document.createElement("div");
                 row.className = "photo-row";
                 const total = indices.reduce((sum, index) => sum + gallery.ratios[index], 0);
+                const widestLandscape = Math.max(0, ...indices.map(index => gallery.ratios[index] > 1 ? gallery.ratios[index] : 0));
+                row.style.maxWidth = `${limitedRowWidth(total, widestLandscape, indices.length, width, columns)}px`;
                 indices.forEach(index => {
                     gallery.figures[index].style.setProperty("--photo-share", String(100 * gallery.ratios[index] / total));
                     row.append(gallery.figures[index]);
