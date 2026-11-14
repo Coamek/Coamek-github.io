@@ -2,6 +2,370 @@
   "version": 1,
   "photos": [
     {
+      "id": "18089815865298341",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18089815865298341.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 0,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18211818793370099",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18211818793370099.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 1,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18474378040139854",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18474378040139854.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 2,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18398748139167074",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18398748139167074.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 3,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "17917405638472315",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17917405638472315.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 4,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18107837054343702",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18107837054343702.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 5,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "17919077748549740",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17919077748549740.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 6,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      },
+      "split_source": {
+        "src": "assets/photography/web/instagram/17919077748549740-source.png",
+        "width": 1925,
+        "height": 2566
+      },
+      "split_at": 0.5,
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/17919077748549740-top.png",
+          "width": 1925,
+          "height": 1283,
+          "alt": "badgers men’s basketball vs. delaware - 11/6/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/17919077748549740-bottom.png",
+          "width": 1925,
+          "height": 1283,
+          "alt": "badgers men’s basketball vs. delaware - 11/6/26 (bottom photograph)"
+        }
+      ]
+    },
+    {
+      "id": "17914380042591141",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17914380042591141.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 7,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      },
+      "split_source": {
+        "src": "assets/photography/web/instagram/17914380042591141-source.png",
+        "width": 1925,
+        "height": 2566
+      },
+      "split_at": 0.5,
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/17914380042591141-top.png",
+          "width": 1925,
+          "height": 1283,
+          "alt": "badgers men’s basketball vs. delaware - 11/6/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/17914380042591141-bottom.png",
+          "width": 1925,
+          "height": 1283,
+          "alt": "badgers men’s basketball vs. delaware - 11/6/26 (bottom photograph)"
+        }
+      ]
+    },
+    {
+      "id": "17940345720126123",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17940345720126123.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 8,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18124318534981846",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18124318534981846.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 9,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18081571673416272",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18081571673416272.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 10,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18034025726681545",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18034025726681545.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 11,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18092445602261827",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18092445602261827.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 12,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "17913531972482805",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17913531972482805.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 13,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18347846968249371",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18347846968249371.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 14,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18125709190730489",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18125709190730489.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 15,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "17871303984663203",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17871303984663203.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 16,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18094217330214716",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18094217330214716.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 17,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18127615039898445",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18127615039898445.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 18,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
+      "id": "18102569009393652",
+      "post_id": "18112916765594682",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18102569009393652.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. delaware - 11/6/26",
+      "permalink": "https://www.instagram.com/p/DfsoIZIINRd/",
+      "timestamp": "2026-11-13T21:45:10+0000",
+      "carousel_position": 19,
+      "game": {
+        "title": "Wisconsin vs. Delaware",
+        "date": "2026-11-06"
+      }
+    },
+    {
       "id": "18073887797497381",
       "post_id": "18576246757072663",
       "category": "basketball",
