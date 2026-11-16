@@ -8,6 +8,7 @@ on:
       - '*.js'
       - 'assets/**'
       - 'data/instagram-*.json'
+      - 'data/photography-*.html'
       - 'scripts/**'
       - '.github/workflows/instagram-*.yml'
   workflow_dispatch:
@@ -33,6 +34,7 @@ jobs:
       - name: Check the saved gallery renders without Instagram access
         run: |
           python scripts/sync_instagram.py --render-only
-          git diff --exit-code -- photography.html
+          git diff --exit-code -- photography.html 'photography-*.html'
+          test -z "$(git ls-files --others --exclude-standard -- 'photography-*.html')"
       - name: Check public portfolio assets
         run: python scripts/package_pages.py --output "$RUNNER_TEMP/portfolio-site"

@@ -2686,6 +2686,128 @@ body.school-personal-page {
     display: none;
 }
 
+.photography-index-page .photo-collection-section {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 36px 24px;
+}
+
+.photography-index-page .photo-collection-section > .case-section-head {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
+.photography-index-page .instagram-game-groups {
+    display: contents;
+}
+
+.photo-game-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    scroll-margin-top: 24px;
+}
+
+.photo-game-cover {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+    background: var(--rule);
+}
+
+.photo-game-cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 220ms ease;
+}
+
+.photo-game-count {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 12px;
+}
+
+.photography-page .photo-game-card .photo-game-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 16px 0 12px;
+}
+
+.photography-page .photo-game-card h3 {
+    font-size: clamp(19px, 2vw, 24px);
+}
+
+.photo-game-open {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    margin-top: auto;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+}
+
+.photo-game-card:focus-visible,
+.photo-gallery-back:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+}
+
+@media (hover: hover) {
+    .photo-game-card:hover .photo-game-cover img {
+        transform: scale(1.025);
+    }
+
+    .photo-game-card:hover :is(h3, .photo-game-open),
+    .photo-gallery-back:hover {
+        color: var(--accent);
+    }
+}
+
+.photo-gallery-back {
+    display: inline-block;
+    margin-bottom: 32px;
+    font-size: 14px;
+}
+
+.photography-game-page .case-hero h1 {
+    max-width: 1100px;
+    font-size: clamp(38px, 6.5vw, 92px);
+    line-height: 1.04;
+    overflow-wrap: break-word;
+}
+
+.photo-gallery-date {
+    color: var(--muted);
+}
+
+.photo-gallery-total {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+@media (max-width: 900px) {
+    .photography-index-page .photo-collection-section {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .photography-index-page .photo-collection-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .photography-page .photo-game + .photo-game,
 .photography-page .instagram-game-groups:has(.photo-game) + .photo-game {
     margin-top: 42px;

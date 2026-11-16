@@ -591,7 +591,7 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(index.count('<a href='), 3)
         self.assertIn('October 1\u20132, 2026', index)
         self.assertIn('vs. UW-Parkside', index)
-        self.assertIn("Men's basketball", index)
+        self.assertIn("Basketball", index)
         self.assertIn("Women's hockey", index)
         self.assertCountEqual(re.findall(r'href="#([^"]+)"', index), re.findall(r'<h3 id="([^"]+-game-[^"]+)"', rendered))
         self.assertEqual(sync.render_html(rendered, photos), rendered)
@@ -606,6 +606,193 @@ class ImportTests(unittest.TestCase):
         api.verify_account = lambda _: self.fail('Network must not run with broken game index markers')
         with self.assertRaisesRegex(sync.SyncError, 'game index marker pair'):
             self.run_sync(api)
+
+    def enable_game_pages(self):
+        html = self.html.replace('<html><body>',
+            '<html><head><title>Photography</title></head>'
+            '<body class="case-page photography-page photography-index-page">'
+            '<main class="case-main">\n<nav>\n<!-- photography:game-index:start -->\n'
+            '<!-- photography:game-index:end -->\n</nav>')
+        html = html.replace('</body>', '</main></body>')
+        (self.root / 'photography.html').write_text(html, encoding='utf-8')
+
+    def test_game_cards_link_to_complete_pages_with_carousel_order_and_first_cover(self):
+        self.enable_game_pages()
+        index_path = self.root / 'photography.html'
+        index_path.write_bytes(index_path.read_text(encoding='utf-8').replace('\n', '\r\n').encode('utf-8'))
+        parent = image('100', caption='Basketball vs. Denver - 11/2/26', media_type='CAROUSEL_ALBUM')
+        self.run_sync(FakeAPI([parent], {'100': [image('203'), image('201'), image('202')]}))
+        html = (self.root / 'photography.html').read_text(encoding='utf-8')
+        filename = 'photography-basketball-game-2026-11-02-wisconsin-vs-denver.html'
+        page = (self.root / filename).read_text(encoding='utf-8')
+        self.assertNotIn(b'\r\n', (self.root / filename).read_bytes())
+        self.assertEqual(index_path.read_bytes().count(b'\n'), index_path.read_bytes().count(b'\r\n'))
+        self.assertEqual(html.count('class="photo-game-card project"'), 1)
+        self.assertIn('data-no-lightbox src="assets/photography/web/instagram/203.jpg"', html)
+        self.assertNotIn('src="assets/photography/web/instagram/201.jpg"', html)
+        self.assertEqual(html.count(f'href="{filename}"'), 2)  # card and Find a game
+        self.assertIn('3 photos', html)
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', page), ['203', '201', '202'])
+        self.assertIn('photography.html#basketball-game-2026-11-02-wisconsin-vs-denver', page)
+        self.assertIn('class="case-page photography-page photography-game-page"', page)
+        self.assertIn('<script src="photography.js">', page)
+        self.assertIn('<script src="script.js">', page)
+        self.assertNotIn('data-no-lightbox', page)
+        self.assertEqual(page.count('loading="eager"'), 1)
+
+    def test_later_post_updates_same_game_page_and_offline_render_is_idempotent(self):
+        self.enable_game_pages()
+        caption = 'Basketball vs. Denver - 11/2/26'
+        self.run_sync(FakeAPI([image('101', caption=caption)]))
+        filename = 'photography-basketball-game-2026-11-02-wisconsin-vs-denver.html'
+        self.run_sync(FakeAPI([image('102', caption=caption, timestamp='2026-11-10T12:00:00Z')]))
+        self.assertEqual([path.name for path in self.root.glob('photography-*-game-*.html')], [filename])
+        page = (self.root / filename).read_text(encoding='utf-8')
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', page), ['102', '101'])
+        self.assertIn('2 photos', (self.root / 'photography.html').read_text(encoding='utf-8'))
+        state = self.file_state()
+        sync.run(self.root, render_only=True)
+        self.assertEqual(self.file_state(), state)
+
+    def test_split_photographs_stay_in_order_on_game_page(self):
+        self.enable_game_pages()
+        game = {'title': 'Wisconsin vs. Denver', 'date': '2026-11-02'}
+        photos = [photo('101', game=game, parts=[
+            {'part': part, 'src': f'{sync.ASSET_DIRECTORY}/101-{part}.png',
+             'width': 1800, 'height': 1200, 'alt': f'The {part} photograph'}
+            for part in ('top', 'bottom')]), photo('102', game=game)]
+        pages = {}
+        html = sync.render_html((self.root / 'photography.html').read_text(encoding='utf-8'), photos, {}, pages)
+        self.assertIn('3 photos', html)
+        self.assertIn('101-top.png', html)
+        self.assertNotIn('101-bottom.png', html)
+        page = next(iter(pages.values()))
+        self.assertLess(page.index('101-top.png', page.index('<main')), page.index('101-bottom.png'))
+        self.assertLess(page.index('101-bottom.png'), page.index('102.jpg'))
+        self.assertEqual(page.count('class="instagram-photo instagram-photo-horizontal"'), 2)
+
+    def test_combined_hockey_weekend_keeps_url_when_second_date_is_added(self):
+        photos = [photo('101', category='hockey', game={'title': 'Wisconsin vs. Boston', 'date': '2026-10-02'})]
+        first = '\n'.join(sync.render_game_groups(photos, 'hockey', {}))
+        photos.insert(0, photo('102', category='hockey', game={'title': 'Wisconsin vs. Boston', 'date': '2026-10-01'}))
+        second = '\n'.join(sync.render_game_groups(photos, 'hockey', {}))
+        self.assertEqual(sync.game_details(first)[1], sync.game_details(second)[1])
+        self.assertIn('October 1', sync.render_game_card(second))
+        self.assertIn('2 photos', sync.render_game_card(second))
+
+    def test_failed_page_save_restores_all_portfolio_files(self):
+        self.enable_game_pages()
+        original = self.file_state()
+        original_write = sync.atomic_write
+        def fail_index(path, data):
+            if path.name == 'photography.html':
+                raise OSError('Simulated interrupted save')
+            original_write(path, data)
+        with patch.object(sync, 'atomic_write', side_effect=fail_index):
+            with self.assertRaisesRegex(sync.SyncError, 'previous portfolio files were restored'):
+                self.run_sync(FakeAPI([image('101', caption='Basketball vs. Denver - 11/2/26')]))
+        self.assertEqual(self.file_state(), original)
+
+    def test_personal_collection_combines_orientations_in_carousel_order(self):
+        self.enable_game_pages()
+        photos = [photo(str(201 + position), category='personal', post_id='100',
+                        carousel_position=position, width=width, height=height,
+                        alt='views of san francisco - 12/23/25 #portfolio_personal')
+                  for position, (width, height) in enumerate([(1800, 1200), (1200, 1800), (1800, 1200)])]
+        pages = {}
+        html = sync.render_html((self.root / 'photography.html').read_text(encoding='utf-8'), photos, {}, pages)
+        self.assertEqual(list(pages), ['photography-personal-gallery-collection.html'])
+        page = pages['photography-personal-gallery-collection.html']
+        self.assertIn('Personal Photography', html)
+        self.assertNotIn('photo-gallery-date', page)
+        self.assertIn('Photography / Personal', page)
+        self.assertIn('3 photos', html)
+        self.assertIn('data-no-lightbox src="assets/photography/web/instagram/201.jpg"', html)
+        self.assertNotIn('202.jpg', html)
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', page), ['201', '202', '203'])
+        wide = html.split('<!-- instagram:personal-wide:start -->')[1].split('<!-- instagram:personal-wide:end -->')[0]
+        self.assertFalse(wide.strip())
+
+    def test_media_and_personal_pages_are_written_and_refreshed_by_sync(self):
+        self.enable_game_pages()
+        for category, caption in [('media-day', 'Portraits #portfolio_media_day'), ('personal', 'A lake #portfolio_personal')]:
+            with self.subTest(category=category):
+                parent = image('100', caption=caption, media_type='CAROUSEL_ALBUM')
+                self.run_sync(FakeAPI([parent], {'100': [image('201'), image('202')]}))
+                target = f'{category}-gallery-100' if category == 'media-day' else 'personal-gallery-collection'
+                filename = f'photography-{target}.html'
+                self.assertTrue((self.root / filename).is_file())
+                # A new slide in the same post refreshes that page and its cover count.
+                self.run_sync(FakeAPI([parent], {'100': [image('201'), image('202'), image('203')]}))
+                page = (self.root / filename).read_text(encoding='utf-8')
+                self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', page), ['201', '202', '203'])
+                self.assertIn('3 photos', (self.root / 'photography.html').read_text(encoding='utf-8'))
+                self.assertIn(f'photography.html#{target}', page)
+                stable = self.file_state()
+                sync.run(self.root, render_only=True)
+                self.assertEqual(self.file_state(), stable)
+
+    def test_media_day_preserves_description_and_portrait_captions(self):
+        self.enable_game_pages()
+        section = ('<section class="photo-game" aria-labelledby="media-day-gallery-curated">'
+                   '<div class="photo-game-heading"><h3>Mega Media Day</h3></div>'
+                   '<figure><img src="assets/portrait.jpg" alt="Athlete portrait" loading="lazy">'
+                   '<figcaption>Track &amp; Field</figcaption></figure></section>')
+        intro = '<p class="case-section-description media-day-description">The story of the shoot.</p>'
+        filename, page = sync.render_game_page((self.root / 'photography.html').read_text(encoding='utf-8'), section, intro)
+        self.assertEqual(filename, 'photography-media-day-gallery-curated.html')
+        self.assertIn('Photography / Media Day', page)
+        self.assertIn(intro, page)
+        self.assertIn('<figcaption>Track &amp; Field</figcaption>', page)
+        self.assertNotIn('data-lightbox-caption="false"', page)
+        self.assertNotIn('photo-gallery-date', page)
+
+    def test_all_personal_posts_and_curated_photos_share_one_persistent_gallery(self):
+        self.enable_game_pages()
+        index_path = self.root / 'photography.html'
+        html = index_path.read_text(encoding='utf-8').replace('<main class="case-main">',
+            '<main class="case-main"><!-- photography:curated-personal -->')
+        index_path.write_text(html, encoding='utf-8')
+        curated = '<figure><img src="assets/personal-curated.jpg" alt="Original photo" width="1200" height="1800" loading="lazy"></figure>'
+        source = self.root / 'data/photography-personal.html'
+        source.write_text(curated, encoding='utf-8')
+        for media_id, caption in [('101', 'A lake #portfolio_personal'), ('102', 'A city #portfolio_personal')]:
+            self.run_sync(FakeAPI([image(media_id, caption=caption)]))
+        files = list(self.root.glob('photography-personal-*.html'))
+        self.assertEqual([path.name for path in files], ['photography-personal-gallery-collection.html'])
+        page = files[0].read_text(encoding='utf-8')
+        self.assertEqual(re.findall(r'data-instagram-id="(\d+)"', page), ['101', '102'])
+        self.assertIn(curated, page)
+        self.assertIn('3 photos', index_path.read_text(encoding='utf-8'))
+        self.assertLess(page.index('102.jpg', page.index('<main')), page.index('personal-curated.jpg'))
+        self.assertEqual(source.read_text(encoding='utf-8'), curated)
+        stable = self.file_state()
+        sync.run(self.root, render_only=True)
+        self.assertEqual(self.file_state(), stable)
+
+    def test_missing_curated_personal_source_stops_before_network_or_writes(self):
+        self.enable_game_pages()
+        path = self.root / 'photography.html'
+        path.write_text(path.read_text(encoding='utf-8') + '<!-- photography:curated-personal -->', encoding='utf-8')
+        original = self.file_state()
+        api = FakeAPI()
+        api.verify_account = lambda _: self.fail('The source must be validated before contacting Instagram')
+        with self.assertRaisesRegex(sync.SyncError, 'data/photography-personal.html'):
+            self.run_sync(api)
+        self.assertEqual(self.file_state(), original)
+
+    def test_collection_titles_escape_caption_markup_and_do_not_invent_dates(self):
+        self.enable_game_pages()
+        pages = {}
+        html = sync.render_html((self.root / 'photography.html').read_text(encoding='utf-8'),
+            [photo(category='personal', alt='Travel <script>alert(1)</script> & friends')], {}, pages)
+        page = next(iter(pages.values()))
+        self.assertIn('Travel &lt;script&gt;alert(1)&lt;/script&gt; &amp; friends', html)
+        self.assertIn('Travel &lt;script&gt;alert(1)&lt;/script&gt; &amp; friends', page)
+        self.assertNotIn('<script>alert(1)</script>', html + page)
+        self.assertNotIn('photo-gallery-date', page)
+        self.assertEqual(sync.collection_from_caption('#portfolio_media_day', 'media-day'), ('Media Day', ''))
+        self.assertEqual(sync.collection_from_caption('A trip - 2/30/26', 'personal')[1], '')
 
     def test_hockey_series_keep_different_weekends_opponents_and_weekdays_separate(self):
         for first, second in [

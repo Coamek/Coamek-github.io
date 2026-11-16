@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import date, datetime, timezone
-from html import escape
+from html import escape, unescape
 from html.parser import HTMLParser
 from io import BytesIO
 import json
@@ -340,6 +340,14 @@ def render_game_groups(photos: list[dict], category: str, overrides: dict) -> li
     for group in ordered:
         game = group["game"]
         heading_id = f'{category}-game-{group["photos"][0]["post_id"]}'
+        if game:
+            # Keep a game's URL stable when another post is added to the same set.
+            slug = re.sub(r"[^a-z0-9]+", "-", game["title"].casefold()).strip("-")
+            event_key = min(group["dates"])
+            if category == "hockey" and date.fromisoformat(event_key).weekday() >= 3:
+                year, week, _ = date.fromisoformat(event_key).isocalendar()
+                event_key = f"{year}-week-{week:02}"
+            heading_id = f'{category}-game-{event_key}-{slug}'
         title = game["title"] if game else f'{category.capitalize()} photographs'
         lines.extend([f'<section class="photo-game" aria-labelledby="{heading_id}">',
                       '    <div class="photo-game-heading">',
@@ -377,8 +385,10 @@ class GameIndexParser(HTMLParser):
     def handle_starttag(self, tag, attributes):
         attrs = dict(attributes)
         classes = attrs.get("class", "").split()
-        if tag == "section" and "photo-game" in classes:
-            self.current = {"target": attrs.get("aria-labelledby", ""), "title": [], "date": []}
+        if ((tag == "section" and "photo-game" in classes)
+                or (tag == "a" and "photo-game-card" in classes)):
+            self.current = {"target": attrs.get("aria-labelledby", attrs.get("id", "")),
+                            "href": attrs.get("href", ""), "title": [], "date": []}
         elif self.current and tag == "div" and "photo-game-heading" in classes:
             self.in_heading = True
         elif self.in_heading and tag == "h3":
@@ -405,34 +415,221 @@ def render_game_index(html: str) -> str:
     parser = GameIndexParser()
     parser.feed(html)
     lines = []
-    for category, label in (("basketball", "Men's basketball"), ("hockey", "Women's hockey")):
+    for category, label in (("basketball", "Basketball"), ("hockey", "Women's hockey")):
         games = [game for game in parser.games if game["target"].startswith(f"{category}-game-")]
         if not games:
             continue
         lines.extend(['<div class="game-index-group">', f'    <h3>{label}</h3>', '    <ul>'])
         for game in games:
             title = escape(game["title"].removeprefix("Wisconsin "))
-            lines.extend([f'        <li><a href="#{escape(game["target"], quote=True)}">',
+            href = game["href"] or f'#{game["target"]}'
+            lines.extend([f'        <li><a href="{escape(href, quote=True)}">',
                           f'            <span><span class="game-index-matchup">{title}</span>'
                           f'<span class="game-index-date">{escape(game["date"])}</span></span>',
                           '            <span class="game-index-arrow" aria-hidden="true"><svg class="site-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 7l10 10M7 17h10V7"/></svg></span>',
                           '        </a></li>'])
         lines.extend(['    </ul>', '</div>'])
     newline = "\r\n" if "\r\n" in html else "\n"
-    indent = html[html.rfind("\n", 0, html.index(start)) + 1:html.index(start)]
+    prefix = html[html.rfind("\n", 0, html.index(start)) + 1:html.index(start)]
+    indent = prefix if not prefix.strip() else ""
     content = newline + newline.join(indent + line for line in lines) + newline + indent
     return html[:html.index(start) + len(start)] + content + html[html.index(end):]
 
 
-def render_html(html: str, photos: list[dict], game_overrides: dict | None = None) -> str:
+GAME_SECTION = re.compile(r'<section class="photo-game"\s[^>]*>.*?</section>', re.DOTALL)
+
+
+def collection_from_caption(caption: str, category: str) -> tuple[str, str]:
+    """Name a collection from its caption and show only an explicit shoot date."""
+    text = re.sub(r'(?<!\w)#\w+', '', caption).strip()
+    match = re.search(r'\s*(?:[-\u2013\u2014|]\s*)?(\d{1,2})[/-](\d{1,2})[/-](\d{4}|\d{2})\s*$', text)
+    dates = ''
+    if match:
+        month, day, year = match.groups()
+        try:
+            event_date = date(int(year) + (2000 if len(year) == 2 else 0), int(month), int(day))
+        except ValueError:
+            pass
+        else:
+            dates = render_game_dates({event_date.isoformat()})
+            text = text[:match.start()].strip()
+    text = re.sub(r'\s+', ' ', text)
+    title = text[:97].rstrip() + '...' if len(text) > 100 else text
+    if not title:
+        title = 'Media Day' if category == 'media-day' else 'Personal photographs'
+    # Keep already styled captions intact; capitalize captions written in lowercase.
+    if title.islower():
+        small_words = {'a', 'an', 'and', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with'}
+        title = ' '.join(word if index and word in small_words else word.capitalize()
+                         for index, word in enumerate(title.split()))
+    return title, dates
+
+
+def render_collection_groups(photos: list[dict]) -> list[str]:
+    """Each Media Day post is one collection, across all orientations."""
+    posts: dict[str, list[dict]] = {}
+    for photo in photos:
+        posts.setdefault(photo['post_id'], []).append(photo)
+    lines = []
+    for post_id, items in posts.items():
+        category = items[0]['category']
+        heading_id = f'{category}-gallery-{post_id}'
+        title, dates = collection_from_caption(items[0]['alt'], category)
+        lines.extend([
+            f'<section class="photo-game" aria-labelledby="{heading_id}">',
+            '    <div class="photo-game-heading">',
+            f'        <h3 id="{heading_id}">{escape(title)}</h3>',
+            *([f'        {dates}'] if dates else []),
+            '    </div>',
+            f'    <div class="case-gallery photo-gallery {category}-gallery">',
+            *['        ' + render_photo(photo) for photo in items],
+            '    </div>',
+            '</section>',
+        ])
+    return lines
+
+
+def render_personal_collection(photos: list[dict], curated_figures: str) -> list[str]:
+    if not photos and not curated_figures.strip():
+        return []
+    return [
+        '<section class="photo-game" aria-labelledby="personal-gallery-collection">',
+        '    <div class="photo-game-heading">',
+        '        <h3 id="personal-gallery-collection">Personal Photography</h3>',
+        '    </div>',
+        '    <div class="case-gallery photo-gallery personal-gallery">',
+        *['        ' + render_photo(photo) for photo in photos],
+        curated_figures,
+        '    </div>',
+        '</section>',
+    ]
+
+
+def load_curated_personal(root: Path, html: str) -> str:
+    if '<!-- photography:curated-personal -->' not in html:
+        return ''
+    try:
+        figures = (root / 'data/photography-personal.html').read_text(encoding='utf-8')
+    except (OSError, UnicodeError):
+        raise SyncError('A readable data/photography-personal.html is required for the Personal gallery.') from None
+    if not re.search(r'<figure\b[^>]*>.*?</figure>', figures, re.DOTALL):
+        raise SyncError('The curated Personal gallery must contain its photographs.')
+    return figures
+
+
+def game_details(section: str) -> tuple[dict, str, str, list[str]]:
+    parser = GameIndexParser()
+    parser.feed(section)
+    if len(parser.games) != 1:
+        raise SyncError("Each photo gallery must have exactly one heading.")
+    game = parser.games[0]
+    if not re.fullmatch(r'(?:(?:basketball|hockey)-game|(?:media-day|personal)-gallery)-[a-zA-Z0-9-]+', game["target"]):
+        raise SyncError("Each photo gallery needs a valid category and identifier.")
+    heading = re.search(r'<div class="photo-game-heading">(.*?)</div>', section, re.DOTALL)
+    dates = re.sub(r'.*?</h3>\s*', '', heading[1], count=1, flags=re.DOTALL).strip()
+    figures = re.findall(r'<figure\b[^>]*>.*?</figure>', section, re.DOTALL)
+    if not figures:
+        raise SyncError("Each photo gallery needs at least one photograph.")
+    return game, f'photography-{game["target"]}.html', dates, figures
+
+
+def gallery_cover_image(figures: list[str]) -> str:
+    # A pinned cover survives new imports without changing the gallery's photo order.
+    selected = next((figure for figure in figures
+                     if re.search(r'<figure\b[^>]*\bdata-gallery-cover(?=[\s=>])', figure)), figures[0])
+    return re.search(r'<img\b[^>]*>', selected)[0]
+
+
+def render_game_card(section: str) -> str:
+    game, filename, dates, figures = game_details(section)
+    cover = gallery_cover_image(figures)
+    # A cover is a page link; the shared lightbox must leave it alone.
+    cover = cover.replace('<img ', '<img data-no-lightbox ', 1)
+    count = len(figures)
+    return '\n'.join([
+        f'<a class="photo-game-card project" id="{game["target"]}" href="{filename}">',
+        f'    <div class="photo-game-cover">{cover}',
+        f'        <span class="photo-game-count">{count} {"photo" if count == 1 else "photos"}</span>',
+        '    </div>',
+        '    <div class="photo-game-heading">',
+        f'        <h3>{escape(game["title"])}</h3>',
+        *([f'        {dates}'] if dates else []),
+        '    </div>',
+        '    <span class="photo-game-open">View gallery <span aria-hidden="true">↗</span></span>',
+        '</a>',
+    ])
+
+
+def render_game_page(html: str, section: str, intro: str = '') -> tuple[str, str]:
+    game, filename, dates, figures = game_details(section)
+    category = re.split(r'-(?:game|gallery)-', game['target'], maxsplit=1)[0]
+    label = {'basketball': 'Basketball', 'hockey': 'Hockey', 'media-day': 'Media Day', 'personal': 'Personal'}[category]
+    title = f'{game["title"]} | Photography | Connor Oamek'
+    description = f'{game["title"]} photographs by Connor Oamek.'
+    prefix = html.split('<main class="case-main">', 1)[0]
+    prefix = prefix.replace('photography-index-page', 'photography-game-page')
+    prefix = re.sub(r'<title>.*?</title>', lambda _: f'<title>{escape(title)}</title>', prefix)
+    cover = re.search(r'\bsrc="([^"]+)"', gallery_cover_image(figures))[1]
+    for key, value in {
+        'description': description, 'og:title': title, 'og:description': description,
+        'og:url': f'https://connoroamek.me/{filename}',
+        'og:image': 'https://connoroamek.me/' + unescape(cover),
+        'og:image:secure_url': 'https://connoroamek.me/' + unescape(cover),
+        'twitter:title': title, 'twitter:description': description,
+        'twitter:image': 'https://connoroamek.me/' + unescape(cover),
+    }.items():
+        prefix = re.sub(r'(<meta (?:name|property)="' + re.escape(key) + r'" content=")[^"]*(">)',
+                        lambda match: match[1] + escape(value, quote=True) + match[2], prefix)
+    prefix = re.sub(r'\s*<meta property="og:image:(?:type|width|height)"[^>]*>', '', prefix)
+    back = f'photography.html#{game["target"]}'
+    count = len(figures)
+    # Show the first gallery image promptly; defer the rest of the collection.
+    figures = [re.sub(r'loading="(?:lazy|eager)"', f'loading="{"eager" if i == 0 else "lazy"}"', figure)
+               for i, figure in enumerate(figures)]
+    page = prefix + '\n'.join([
+        '<main class="case-main">',
+        '    <section class="case-hero" aria-labelledby="case-title">',
+        f'        <a class="photo-gallery-back" href="{back}">← Back to Photography</a>',
+        f'        <p class="case-kicker">Photography / {label}</p>',
+        '        <div class="case-hero-copy">',
+        f'            <h1 id="case-title">{escape(game["title"])}</h1>',
+        *([f'            <p class="case-lede photo-gallery-date">{dates}</p>'] if dates else []),
+        f'            <p class="photo-gallery-total">{count} {"photograph" if count == 1 else "photographs"}</p>',
+        '        </div>',
+        '    </section>',
+        f'    <section class="case-section" aria-label="{label} photographs"' +
+        ('>' if category == 'media-day' else ' data-lightbox-caption="false">'),
+        *(['        ' + intro] if intro else []),
+        f'        <div class="case-gallery photo-gallery {category}-gallery">',
+        *['            ' + figure for figure in figures],
+        '        </div>',
+        '    </section>',
+        '    <div class="footer-bottom">',
+        '        <a href="index.html#top">Connor Oamek © 2026</a>',
+        f'        <a href="{back}">← Back to Photography</a>',
+        '        <a class="back-to-top" href="#top">Back to top ↑</a>',
+        '    </div>',
+        '</main>',
+        '<script src="photography.js"></script>',
+        '<script src="script.js"></script>',
+        '</body>',
+        '</html>', '',
+    ])
+    # Generated files must be identical on Windows and the Linux publish runner.
+    return filename, page.replace('\r\n', '\n')
+
+
+def render_html(html: str, photos: list[dict], game_overrides: dict | None = None,
+                game_pages: dict[str, str] | None = None, personal_figures: str = '') -> str:
     validate_markers(html)
+    collection_pages = 'photography-index-page' in html
     groups: dict[str, list[dict]] = {key: [] for key in MARKER_KEYS}
     for source in sorted_photos(photos):
         for part in source.get("parts", [{}]):
             photo = {**source, **part}
             key = photo["category"]
             if key == "personal":
-                key += "-wide" if photo["width"] > photo["height"] else "-vertical"
+                key += "-wide" if not collection_pages and photo["width"] > photo["height"] else "-vertical"
             groups[key].append(photo)
     newline = "\r\n" if "\r\n" in html else "\n"
     for key in MARKER_KEYS:
@@ -443,9 +640,22 @@ def render_html(html: str, photos: list[dict], game_overrides: dict | None = Non
         line_start = html.rfind("\n", 0, html.index(start)) + 1
         prefix = html[line_start:html.index(start)]
         indent = prefix if not prefix.strip() else ""
-        figures = (render_game_groups(groups[key], key, game_overrides or {}) if key in ("basketball", "hockey")
-                   else [render_photo(photo) for photo in groups[key]])
-        figures = [indent + figure for figure in figures]
+        if key in ("basketball", "hockey"):
+            figures = render_game_groups(groups[key], key, game_overrides or {})
+        elif collection_pages and key == 'personal-vertical':
+            figures = render_personal_collection(groups[key], personal_figures)
+        elif collection_pages:
+            figures = render_collection_groups(groups[key])
+        else:
+            figures = [render_photo(photo) for photo in groups[key]]
+        if collection_pages:
+            sections = GAME_SECTION.findall('\n'.join(figures))
+            if game_pages is not None:
+                for section in sections:
+                    filename, page = render_game_page(html, section)
+                    game_pages[filename] = page
+            figures = [render_game_card(section) for section in sections]
+        figures = [indent + line for figure in figures for line in figure.splitlines()]
         content = newline + (newline.join(figures) + newline if figures else "") + indent
         html = html[:start_pos] + content + html[end_pos:]
     return render_game_index(html)
@@ -874,8 +1084,11 @@ def atomic_write(path: Path, data: bytes) -> None:
 
 
 def commit_sync(staged_files: dict[Path, Path], html_path: Path, html: str,
-                manifest_path: Path | None = None, manifest: dict | None = None) -> None:
+                manifest_path: Path | None = None, manifest: dict | None = None,
+                game_pages: dict[str, str] | None = None) -> None:
     updates = [(path, staged.read_bytes()) for path, staged in staged_files.items()]
+    updates.extend((html_path.parent / filename, page.encode("utf-8"))
+                   for filename, page in (game_pages or {}).items())
     if manifest_path is not None:
         updates.append((manifest_path, (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8")))
     updates.append((html_path, html.encode("utf-8")))
@@ -903,6 +1116,7 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     except (FileNotFoundError, UnicodeError):
         raise SyncError("A readable photography.html is required in the repository root.") from None
     validate_markers(html)
+    personal_figures = load_curated_personal(root, html)
     manifest_path = root / "data/instagram-photos.json"
     manifest = load_manifest(manifest_path)
     config = load_config(root / "data/instagram-config.json")
@@ -915,8 +1129,10 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
             staged_files = {}
             apply_image_splits(root, manifest, config["image_splits"], Path(staging), staged_files)
             changed = manifest["photos"] != original_photos
-            commit_sync(staged_files, html_path, render_html(html, manifest["photos"], config["game_overrides"]),
-                        manifest_path if changed else None, manifest if changed else None)
+            game_pages = {}
+            output = render_html(html, manifest["photos"], config["game_overrides"], game_pages, personal_figures)
+            commit_sync(staged_files, html_path, output,
+                        manifest_path if changed else None, manifest if changed else None, game_pages)
         return manifest
     access_token = token if token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
     access_token = normalize_token(access_token)
@@ -925,8 +1141,9 @@ def run(root: Path, render_only: bool = False, token: str | None = None, api=Non
     with tempfile.TemporaryDirectory(prefix="portfolio-instagram-") as staging:
         updated, staged = stage_sync(root, manifest, config, api, Path(staging), downloader, optimizer, source_preparer)
         apply_image_splits(root, updated, config["image_splits"], Path(staging), staged)
-        output = render_html(html, updated["photos"], config["game_overrides"])
-        commit_sync(staged, html_path, output, manifest_path, updated)
+        game_pages = {}
+        output = render_html(html, updated["photos"], config["game_overrides"], game_pages, personal_figures)
+        commit_sync(staged, html_path, output, manifest_path, updated, game_pages)
     return updated
 
 
