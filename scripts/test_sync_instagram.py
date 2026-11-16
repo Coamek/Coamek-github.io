@@ -781,6 +781,31 @@ class ImportTests(unittest.TestCase):
             self.run_sync(api)
         self.assertEqual(self.file_state(), original)
 
+    def test_pinned_personal_post_stays_first_and_merges_curated_and_split_slides(self):
+        self.enable_game_pages()
+        curated = ('<figure data-gallery-cover data-gallery-first-post="100" data-instagram-post-id="100" data-instagram-position="0">'
+                   '<img src="assets/cover.jpg" alt="Cover" width="1200" height="1800" loading="lazy"></figure>'
+                   '<figure><img src="assets/other.jpg" alt="Another photograph" width="1200" height="1800" loading="lazy"></figure>'
+                   '<figure data-instagram-post-id="100" data-instagram-position="2">'
+                   '<img src="assets/last-slide.jpg" alt="Last slide" width="1200" height="1800" loading="lazy"></figure>')
+        photos = [photo('201', category='personal', post_id='200', timestamp='2026-11-10T12:00:00Z'),
+                  photo('101', category='personal', post_id='100', carousel_position=1, parts=[
+                      {'part': part, 'src': f'{sync.ASSET_DIRECTORY}/101-{part}.png',
+                       'width': 1800, 'height': 1200, 'alt': part}
+                      for part in ('top', 'bottom')])]
+        for newer_post in (False, True):
+            if newer_post:
+                photos.insert(0, photo('301', category='personal', post_id='300', timestamp='2026-11-11T12:00:00Z'))
+            pages = {}
+            html = sync.render_html((self.root / 'photography.html').read_text(encoding='utf-8'), photos, {}, pages, curated)
+            page = pages['photography-personal-gallery-collection.html']
+            sources = re.findall(r'<img\b[^>]*\bsrc="([^"]+)"', page)
+            self.assertEqual(sources[:4], ['assets/cover.jpg', f'{sync.ASSET_DIRECTORY}/101-top.png',
+                                         f'{sync.ASSET_DIRECTORY}/101-bottom.png', 'assets/last-slide.jpg'])
+            self.assertEqual(sources[4:], ([f'{sync.ASSET_DIRECTORY}/301.jpg'] if newer_post else [])
+                             + [f'{sync.ASSET_DIRECTORY}/201.jpg', 'assets/other.jpg'])
+            self.assertIn('data-no-lightbox src="assets/cover.jpg"', html)
+
     def test_collection_titles_escape_caption_markup_and_do_not_invent_dates(self):
         self.enable_game_pages()
         pages = {}

@@ -492,14 +492,31 @@ def render_collection_groups(photos: list[dict]) -> list[str]:
 def render_personal_collection(photos: list[dict], curated_figures: str) -> list[str]:
     if not photos and not curated_figures.strip():
         return []
+    figures = [render_photo(photo) for photo in photos]
+    first_post = re.search(r'\bdata-gallery-first-post="(\d+)"', curated_figures)
+    if first_post:
+        post_id = first_post[1]
+        selected = [(photo.get('carousel_position', sys.maxsize), render_photo(photo))
+                    for photo in photos if photo['post_id'] == post_id]
+        remaining = [render_photo(photo) for photo in photos if photo['post_id'] != post_id]
+        for figure in re.findall(r'<figure\b[^>]*>.*?</figure>', curated_figures, re.DOTALL):
+            source_post = re.search(r'<figure\b[^>]*\bdata-instagram-post-id="(\d+)"', figure)
+            if source_post and source_post[1] == post_id:
+                position = re.search(r'<figure\b[^>]*\bdata-instagram-position="(\d+)"', figure)
+                selected.append((int(position[1]) if position else sys.maxsize, figure))
+            else:
+                remaining.append(figure)
+        # Stable sorting also keeps split photographs together at their slide's position.
+        figures = [figure for _, figure in sorted(selected, key=lambda item: item[0])] + remaining
+    else:
+        figures.append(curated_figures)
     return [
         '<section class="photo-game" aria-labelledby="personal-gallery-collection">',
         '    <div class="photo-game-heading">',
         '        <h3 id="personal-gallery-collection">Personal Photography</h3>',
         '    </div>',
         '    <div class="case-gallery photo-gallery personal-gallery">',
-        *['        ' + render_photo(photo) for photo in photos],
-        curated_figures,
+        *['        ' + figure for figure in figures],
         '    </div>',
         '</section>',
     ]
