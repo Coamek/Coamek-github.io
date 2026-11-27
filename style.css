@@ -1400,6 +1400,18 @@ body.school-personal-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.sonics-motion-gallery video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: var(--ink);
+}
+
+.sonics-motion-gallery > figure::after {
+    content: none;
+}
+
 @media (min-width: 601px) {
     .sonics-uniform-gallery > figure:last-child {
         grid-column: 1 / -1;
