@@ -1579,8 +1579,7 @@ body.school-personal-page {
 
 .football-gallery-featured {
     display: grid;
-    width: 66.666%;
-    max-width: 850px;
+    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     margin: 0 auto 20px;
@@ -1597,6 +1596,40 @@ body.school-personal-page {
 
 .case-gallery-format-pair--tall-first {
     grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+}
+
+.cross-country-section .case-gallery {
+    margin-inline: auto;
+}
+
+@media (min-width: 601px) {
+    .cross-country-section .case-gallery-format-pair {
+        grid-template-columns: minmax(0, 0.703125fr) minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 901px) {
+    .cross-country-section .case-gallery-two,
+    .football-gallery-featured {
+        width: calc((100% - 28px) * 2 / 3 + 14px);
+    }
+
+    .cross-country-section .case-gallery-format-pair {
+        width: calc((100% - 28px) * 1.703125 / 3 + 14px);
+    }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+    .cross-country-section .case-gallery-format-pair {
+        width: calc((100% - 14px) * 1.703125 / 2 + 14px);
+    }
+}
+
+@media (max-width: 600px) {
+    .cross-country-section .case-gallery-format-pair > figure:first-child {
+        width: 70.3125%;
+        justify-self: center;
+    }
 }
 
 .made-hoops-variants--pair-story {
@@ -1867,7 +1900,7 @@ body.school-personal-page {
     }
 
     .football-gallery-featured {
-        width: 82%;
+        width: 100%;
     }
 
     .case-gallery-three {
