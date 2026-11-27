@@ -1403,8 +1403,10 @@ body.school-personal-page {
 .sonics-motion-gallery video {
     display: block;
     width: 100%;
+    max-width: 100%;
     height: auto;
     aspect-ratio: 16 / 9;
+    object-fit: contain;
     background: var(--ink);
 }
 
