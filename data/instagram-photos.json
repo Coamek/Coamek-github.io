@@ -2,13 +2,377 @@
   "version": 1,
   "photos": [
     {
+      "id": "18134551753749171",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18134551753749171.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 0,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18015724862766475",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18015724862766475.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 1,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18143360305617222",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18143360305617222.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 2,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18116937791235432",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18116937791235432.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 3,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "17997207075059220",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17997207075059220.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 4,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18403548457201117",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18403548457201117.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 5,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18031743599926008",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18031743599926008.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 6,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      },
+      "split_source": {
+        "src": "assets/photography/web/instagram/18031743599926008-source.png",
+        "width": 3072,
+        "height": 4096
+      },
+      "split_at": 0.5,
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/18031743599926008-top.png",
+          "width": 3072,
+          "height": 2048,
+          "alt": "badgers men’s basketball vs. fairfield - 11/10/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/18031743599926008-bottom.png",
+          "width": 3072,
+          "height": 2048,
+          "alt": "badgers men’s basketball vs. fairfield - 11/10/26 (bottom photograph)"
+        }
+      ]
+    },
+    {
+      "id": "18122408669058144",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18122408669058144.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 7,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18134685673879869",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18134685673879869.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 8,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      },
+      "split_source": {
+        "src": "assets/photography/web/instagram/18134685673879869-source.png",
+        "width": 3072,
+        "height": 4096
+      },
+      "split_at": 0.5,
+      "parts": [
+        {
+          "part": "top",
+          "src": "assets/photography/web/instagram/18134685673879869-top.png",
+          "width": 3072,
+          "height": 2048,
+          "alt": "badgers men’s basketball vs. fairfield - 11/10/26 (top photograph)"
+        },
+        {
+          "part": "bottom",
+          "src": "assets/photography/web/instagram/18134685673879869-bottom.png",
+          "width": 3072,
+          "height": 2048,
+          "alt": "badgers men’s basketball vs. fairfield - 11/10/26 (bottom photograph)"
+        }
+      ]
+    },
+    {
+      "id": "18345928783259459",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18345928783259459.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 9,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18064279793539318",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18064279793539318.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 10,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "17989826175105652",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17989826175105652.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 11,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "17965496847249747",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17965496847249747.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 12,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18119349050116305",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18119349050116305.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 13,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18112443658932111",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18112443658932111.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 14,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "17927944530447043",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/17927944530447043.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 15,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18134839729744830",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18134839729744830.jpg",
+      "width": 1223,
+      "height": 1630,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 16,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18242933509320026",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18242933509320026.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 17,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18170296918419262",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18170296918419262.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 18,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
+      "id": "18443916160197610",
+      "post_id": "17869506333675654",
+      "category": "basketball",
+      "src": "assets/photography/web/instagram/18443916160197610.jpg",
+      "width": 1350,
+      "height": 1800,
+      "alt": "badgers men’s basketball vs. fairfield - 11/10/26",
+      "permalink": "https://www.instagram.com/p/DgGjeaeoIdE/",
+      "timestamp": "2026-11-23T23:24:44+0000",
+      "carousel_position": 19,
+      "game": {
+        "title": "Wisconsin vs. Fairfield",
+        "date": "2026-11-10"
+      }
+    },
+    {
       "id": "18076621853772268",
       "post_id": "18101185205456970",
       "category": "basketball",
       "src": "assets/photography/web/instagram/18076621853772268.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 0,
@@ -24,7 +388,7 @@
       "src": "assets/photography/web/instagram/18067176683669295.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 1,
@@ -40,7 +404,7 @@
       "src": "assets/photography/web/instagram/18127974595903442.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 2,
@@ -56,7 +420,7 @@
       "src": "assets/photography/web/instagram/18119788450812716.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 3,
@@ -76,14 +440,14 @@
           "src": "assets/photography/web/instagram/18119788450812716-top.png",
           "width": 3072,
           "height": 2048,
-          "alt": "badgers women’s basketball vs. grambling state - 11-8-26 (top photograph)"
+          "alt": "badgers women’s basketball vs. grambling state - 11/8/26 (top photograph)"
         },
         {
           "part": "bottom",
           "src": "assets/photography/web/instagram/18119788450812716-bottom.png",
           "width": 3072,
           "height": 2048,
-          "alt": "badgers women’s basketball vs. grambling state - 11-8-26 (bottom photograph)"
+          "alt": "badgers women’s basketball vs. grambling state - 11/8/26 (bottom photograph)"
         }
       ]
     },
@@ -94,7 +458,7 @@
       "src": "assets/photography/web/instagram/17995004238024799.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 4,
@@ -110,7 +474,7 @@
       "src": "assets/photography/web/instagram/18135140839689681.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 5,
@@ -126,7 +490,7 @@
       "src": "assets/photography/web/instagram/18184718521427383.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 6,
@@ -142,7 +506,7 @@
       "src": "assets/photography/web/instagram/18112701635619279.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 7,
@@ -158,7 +522,7 @@
       "src": "assets/photography/web/instagram/18131880788301544.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 8,
@@ -174,7 +538,7 @@
       "src": "assets/photography/web/instagram/18442160251194966.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 9,
@@ -190,7 +554,7 @@
       "src": "assets/photography/web/instagram/18194666314405842.jpg",
       "width": 1350,
       "height": 1800,
-      "alt": "badgers women’s basketball vs. grambling state - 11-8-26",
+      "alt": "badgers women’s basketball vs. grambling state - 11/8/26",
       "permalink": "https://www.instagram.com/p/Df0ZHRTIKNC/",
       "timestamp": "2026-11-16T22:07:52+0000",
       "carousel_position": 10,
